@@ -1,0 +1,28 @@
+version: "3.3"
+
+services:
+  telegram_media_downloader:
+    image: tangyoha/telegram_media_downloader:latest
+    build: .
+    container_name: tg-download
+    ports:
+      # 前端 Web UI 端口映射（外部访问端口:15086）
+      - "15086:5000"
+    # 如果需要代理，取消以下注释并修改为你的代理地址
+    #environment:
+    #  - http_proxy=http://你的代理地址:端口
+    #  - https_proxy=http://你的代理地址:端口
+    volumes:
+      # 下载文件存储目录（修改为你的实际路径）
+      - "./downloads/:/app/downloads/"
+
+      # Rclone 配置目录
+      - "./rclone/:/root/.config/rclone/"
+
+      # 以下配置一般不需要修改
+      - "./config.yaml:/app/config.yaml"
+      - "./data.yaml:/app/data.yaml"
+      - "./log/:/app/log/"
+      - "./sessions/:/app/sessions"
+      - "./temp/:/app/temp"
+    restart: unless-stopped
