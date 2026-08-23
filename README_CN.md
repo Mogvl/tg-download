@@ -75,6 +75,43 @@ git clone https://github.com/tangyoha/telegram_media_downloader.git
 cd telegram_media_downloader
 pip3 install -r requirements.txt
 ```
+
+## 绿联 NAS (UGREEN) 一键部署
+
+本仓库提供 `docker-compose.yml`，可在绿联 Docker「项目 / Compose」中一键部署。
+
+### docker-compose.yml 内容
+
+可直接复制以下内容保存为项目目录中的 `docker-compose.yml`：
+
+```yaml
+version: '3.8'
+
+services:
+  tg-download:
+    image: ghcr.io/mogvl/tg-download:latest
+    container_name: tg-download
+    ports:
+      - "13087:5000"
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./downloads:/app/downloads
+      - ./sessions:/app/sessions
+    restart: unless-stopped
+```
+
+### 一键部署步骤
+1. 在绿联 Docker 中选择 **项目 / Compose → 创建项目**，导入上述 `docker-compose.yml`。
+2. 点击 **部署 / 启动**，容器会自动拉取 `ghcr.io/mogvl/tg-download:latest` 镜像。
+3. 浏览器访问 `http://<绿联 IP>:13087` 进入 Web 管理界面。
+4. 首次使用需在 Web 界面配置 Telegram API（api_id/api_hash），按提示完成登录。
+
+### 数据说明
+- `downloads/`：下载的媒体文件（持久化）
+- `sessions/`：Telegram 登录会话（重启不丢失）
+
+---
 ## Docker容器
 > 更详细安装教程请查看wiki
 

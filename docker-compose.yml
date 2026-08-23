@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  tg-download:
+    image: ghcr.io/mogvl/tg-download:latest
+    container_name: tg-download
+    ports:
+      - "13087:5000"
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./downloads:/app/downloads
+      - ./sessions:/app/sessions
+    restart: unless-stopped

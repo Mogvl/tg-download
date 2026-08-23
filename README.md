@@ -14,7 +14,7 @@
 ## 功能
 
 - 📥 下载 Telegram 频道/群组/私聊中的媒体文件（音频、视频、图片、文档等）
-- 🌐 Web UI 管理界面（端口 `15086`）
+- 🌐 Web UI 管理界面（端口 `13087`）
 - 🤖 支持 Telegram Bot 机器人交互
 - 📁 自动按频道/日期分类存储
 - ☁️ 支持 Rclone 上传到云盘
@@ -44,7 +44,7 @@ git clone https://github.com/Mogvl/tg-download.git .
 
 或者手动创建以下文件：
 
-- `docker-compose.yaml`
+- `docker-compose.yml`
 - `config.yaml`
 - `data.yaml`
 
@@ -82,7 +82,7 @@ docker compose up -d
 
 #### 8. 访问 Web UI
 
-打开浏览器访问：`http://你的NAS IP:15086`
+打开浏览器访问：`http://你的NAS IP:13087`
 
 ---
 
@@ -111,7 +111,7 @@ docker compose up -d
 
 #### 4. 首次登录
 
-容器启动后，访问 `http://NAS IP:15086`，按提示登录 Telegram 账号。
+容器启动后，访问 `http://NAS IP:13087`，按提示登录 Telegram 账号。
 
 ---
 
