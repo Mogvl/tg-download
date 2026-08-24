@@ -210,6 +210,7 @@ var _logAuto=true, _hPg=1, _hT=0, _logTmr=null;
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200);}
 
 /* ── 标签页切换 ── */
+var _dlTableReady=false;
 function showTab(key,btn){
   document.querySelectorAll('.tg-glass > section').forEach(function(s){s.classList.remove('on')});
   document.getElementById('p-'+key).classList.add('on');
@@ -217,6 +218,11 @@ function showTab(key,btn){
   btn.classList.add('on');
   if(key==='logs'){startLog();}else{stopLog();}
   if(key==='history'){hLoad();}
+  if(key==='downloads'&&_dlTableReady){
+    // layui 表格在隐藏容器里宽度为0，切到可见后必须 resize
+    setTimeout(function(){ layui.table.resize('download_list'); layui.table.resize('already_download_list'); },80);
+    loadAlreadyFromDisk();
+  }
 }
 
 /* ── 版本 ── */
@@ -248,6 +254,8 @@ layui.use(['table','element'],function(){
       {field:'save_path',title:'路径'}
     ]],done:function(){el.render();}
   });
+
+  _dlTableReady=true;
 
   /* ── 轮询下载列表 ── */
   setInterval(function(){
@@ -286,6 +294,18 @@ layui.use(['table','element'],function(){
       }});
   },2000);
 });
+
+/* ── 从文件系统加载"已下载"列表 ── */
+function loadAlreadyFromDisk(){
+  var x=new XMLHttpRequest();x.open('GET','get_history?page=1&per_page=50',false);x.send();
+  if(x.status!==200)return;
+  var d=JSON.parse(x.responseText);
+  var rows=[];
+  (d.files||[]).forEach(function(f){
+    rows.push({id:f.name,filename:f.name,total_size:f.size_str,save_path:f.path});
+  });
+  layui.table.reload('already_download_list',{data:rows});
+}
 
 /* ── 暂停/继续 ── */
 function dlToggle(el){
