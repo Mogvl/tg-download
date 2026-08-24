@@ -627,12 +627,16 @@ async def run_until_all_task_finish():
 
     while True:
         finish: bool = True
-        for _, value in app.chat_download_config.items():
+        for key, value in app.chat_download_config.items():
             if not value.need_check or value.total_task != value.finish_task:
                 finish = False
+            else:
+                logger.info(f"[debug] 频道{key}: need_check={value.need_check}, total={value.total_task}, finish={value.finish_task}")
 
         # 有配置的频道时保持运行等待下载；无频道且无bot时才退出
-        if (not app.bot_token and finish and not app.chat_download_config) or app.restart_program:
+        _should_exit = (not app.bot_token and finish and not app.chat_download_config) or app.restart_program
+        logger.info(f"[debug] finish={finish}, chat_config_empty={not app.chat_download_config}, restart={app.restart_program}, should_exit={_should_exit}")
+        if _should_exit:
             break
 
         await asyncio.sleep(1)
