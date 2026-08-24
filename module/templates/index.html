@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,516 +8,392 @@
   <link href="static/layui/css/layui.css" rel="stylesheet">
   <link href="static/css/index.css" rel="stylesheet">
   <style>
-    body { padding: 36px 28px 140px; }
-    /* ---- 配置表单 ---- */
-    .cfg-section { margin-bottom: 32px; }
-    .cfg-section-title {
-      font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
-      color: var(--ink-3); text-transform: uppercase; margin-bottom: 16px;
+    body { padding: 32px 24px 120px; }
+    /* ── 标签导航 ── */
+    .nav { display:flex; gap:6px; margin-bottom:28px; border-bottom:1px solid var(--hairline); padding-bottom:12px; }
+    .nav-btn {
+      padding:9px 22px; border:none; border-radius:999px; cursor:pointer;
+      font-size:13px; font-weight:500; letter-spacing:.06em;
+      color:var(--ink-3); background:transparent; transition:all .25s var(--ease);
     }
-    .cfg-row { display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
-    .cfg-field { flex: 1; min-width: 160px; }
-    .cfg-field label {
-      display: block; font-size: 12px; font-weight: 500;
-      color: var(--ink-2); margin-bottom: 5px; letter-spacing: 0.04em;
+    .nav-btn:hover { color:var(--ink); background:rgba(255,255,255,.4); }
+    .nav-btn.on { color:#fff; background:var(--grad); box-shadow:0 4px 14px rgba(178,138,222,.22); }
+    .panes > section { display:none; }
+    .panes > section.on { display:block; }
+    /* ── 通用表单 ── */
+    .f-section { margin-bottom:28px; }
+    .f-label { display:block; font-size:11px; font-weight:600; letter-spacing:.1em; color:var(--ink-3); text-transform:uppercase; margin-bottom:12px; }
+    .f-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px; }
+    .f-field { flex:1; min-width:140px; }
+    .f-field label { display:block; font-size:12px; font-weight:500; color:var(--ink-2); margin-bottom:4px; }
+    .f-field input, .f-field select, .f-field textarea {
+      width:100%; box-sizing:border-box; height:38px; padding:0 12px;
+      border:1px solid var(--hairline); border-radius:10px;
+      background:rgba(255,255,255,.55); color:var(--ink); font-size:13px; outline:none;
+      transition:border-color .2s, box-shadow .2s;
     }
-    .cfg-field input, .cfg-field select, .cfg-field textarea {
-      width: 100%; box-sizing: border-box; height: 40px; padding: 0 14px;
-      border: 1px solid var(--hairline); border-radius: 10px;
-      background: rgba(255,255,255,0.55); color: var(--ink);
-      font-size: 13.5px; outline: none; transition: border-color 0.25s, box-shadow 0.25s;
+    .f-field textarea { height:auto; padding:8px 12px; line-height:1.6; resize:vertical; min-height:36px; }
+    .f-field input:focus, .f-field select:focus, .f-field textarea:focus {
+      border-color:var(--mist-violet); box-shadow:0 0 0 3px rgba(203,180,236,.15);
     }
-    .cfg-field textarea { height: auto; padding: 10px 14px; line-height: 1.6; resize: vertical; min-height: 38px; }
-    .cfg-field input:focus, .cfg-field select:focus, .cfg-field textarea:focus {
-      border-color: var(--mist-violet);
-      box-shadow: 0 0 0 3px rgba(203,180,236,0.15);
+    /* chips */
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chips label {
+      display:inline-flex; align-items:center; gap:5px; padding:5px 14px;
+      border-radius:999px; font-size:12.5px; border:1px solid var(--hairline);
+      background:rgba(255,255,255,.45); color:var(--ink-2); cursor:pointer; transition:all .2s;
     }
-    .cfg-field input[type="checkbox"] { width: auto; height: auto; accent-color: var(--mist-violet); }
-    .cfg-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-    .cfg-chips label {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 6px 14px; border-radius: 999px; font-size: 12.5px;
-      border: 1px solid var(--hairline); background: rgba(255,255,255,0.45);
-      color: var(--ink-2); cursor: pointer; transition: all 0.2s;
-      user-select: none;
+    .chips label:has(input:checked) { border-color:var(--mist-violet); background:rgba(203,180,236,.12); color:var(--ink); }
+    .chips input { display:none; }
+    /* chat card */
+    .cc { display:flex; align-items:center; gap:8px; padding:8px 12px; margin-bottom:6px; border-radius:10px; background:rgba(255,255,255,.35); border:1px solid var(--hairline); }
+    .cc input { flex:1; height:32px; border:1px solid var(--hairline); border-radius:8px; padding:0 10px; font-size:12.5px; background:rgba(255,255,255,.5); color:var(--ink); outline:none; }
+    .cc input:focus { border-color:var(--mist-violet); }
+    .cc .x { width:26px; height:26px; border:none; border-radius:7px; cursor:pointer; background:rgba(239,68,68,.06); color:#d4748a; font-size:13px; display:flex; align-items:center; justify-content:center; }
+    .cc .x:hover { background:rgba(239,68,68,.12); }
+    /* btns */
+    .bar { display:flex; justify-content:flex-end; gap:10px; padding-top:16px; border-top:1px solid var(--hairline); margin-top:8px; }
+    .bar button { padding:9px 24px; border-radius:999px; border:none; cursor:pointer; font-size:13px; font-weight:500; letter-spacing:.06em; transition:all .25s var(--ease); }
+    .bg { background:var(--grad); color:#fff; box-shadow:0 6px 20px rgba(178,138,222,.22); }
+    .bg:hover { transform:translateY(-1px); }
+    .bg:active { transform:scale(.97); }
+    .bh { background:rgba(255,255,255,.45); color:var(--ink-2); border:1px solid var(--hairline); }
+    /* toast */
+    #toast { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-50px); padding:10px 24px; border-radius:10px; font-size:13px; background:rgba(255,255,255,.88); border:1px solid var(--mist-violet); box-shadow:var(--shadow-float); color:var(--ink); z-index:999; backdrop-filter:blur(12px); opacity:0; transition:all .3s var(--ease); pointer-events:none; }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    /* ── 下载表格 ── */
+    .dl-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+    .dl-head span { font-size:14px; color:var(--ink-2); }
+    .dl-sep { border:none; border-top:1px solid var(--hairline); margin:22px 0 16px; }
+    .dl-label { font-size:13px; color:var(--ink-3); margin-bottom:10px; }
+    /* ── 日志 ── */
+    .log-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .log-bar span { font-size:12px; color:var(--ink-3); }
+    .log-toggle { padding:5px 14px; border-radius:999px; border:1px solid var(--hairline); background:rgba(255,255,255,.45); color:var(--ink-2); cursor:pointer; font-size:12px; transition:all .2s; }
+    .log-toggle.on { background:var(--grad); color:#fff; border-color:transparent; }
+    .log-box {
+      background:rgba(30,25,40,.88); color:#d4cce6; border-radius:14px;
+      padding:18px 22px; font-family:"SF Mono","JetBrains Mono","Cascadia Code",monospace;
+      font-size:12px; line-height:1.75; overflow-y:auto; height:480px;
+      border:1px solid rgba(255,255,255,.06);
     }
-    .cfg-chips label:has(input:checked) {
-      border-color: var(--mist-violet); background: rgba(203,180,236,0.12);
-      color: var(--ink);
-    }
-    .cfg-chips input { display: none; }
-    /* 聊天卡片 */
-    .chat-card {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px; margin-bottom: 8px; border-radius: 12px;
-      background: rgba(255,255,255,0.35); border: 1px solid var(--hairline);
-    }
-    .chat-card input { flex: 1; height: 34px; border: 1px solid var(--hairline); border-radius: 8px;
-      padding: 0 10px; font-size: 13px; background: rgba(255,255,255,0.5); color: var(--ink); outline: none; }
-    .chat-card input:focus { border-color: var(--mist-violet); }
-    .chat-card .chat-del {
-      width: 28px; height: 28px; border: none; border-radius: 8px; cursor: pointer;
-      background: rgba(239,68,68,0.06); color: #d4748a; font-size: 14px;
-      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
-    }
-    .chat-card .chat-del:hover { background: rgba(239,68,68,0.12); }
-    /* 保存按钮 */
-    .cfg-save-bar {
-      display: flex; justify-content: flex-end; gap: 12px;
-      padding-top: 20px; border-top: 1px solid var(--hairline); margin-top: 8px;
-    }
-    .cfg-save-bar button {
-      padding: 10px 28px; border-radius: 999px; border: none; cursor: pointer;
-      font-size: 13px; font-weight: 500; letter-spacing: 0.08em; transition: all 0.25s var(--ease);
-    }
-    .btn-primary {
-      background: var(--grad); color: #fff; box-shadow: 0 6px 20px rgba(178,138,222,0.22);
-    }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(178,138,222,0.30); }
-    .btn-primary:active { transform: scale(0.97); }
-    .btn-ghost {
-      background: rgba(255,255,255,0.45); color: var(--ink-2); border: 1px solid var(--hairline);
-    }
-    .btn-ghost:hover { background: rgba(255,255,255,0.7); }
-    /* ---- 日志终端 ---- */
-    .log-terminal {
-      background: rgba(30,25,40,0.88); color: #d4cce6; border-radius: 14px;
-      padding: 20px 24px; font-family: "SF Mono", "JetBrains Mono", "Cascadia Code", monospace;
-      font-size: 12px; line-height: 1.75; overflow-y: auto; height: 520px;
-      border: 1px solid rgba(255,255,255,0.06);
-    }
-    .log-terminal::-webkit-scrollbar { width: 6px; }
-    .log-terminal::-webkit-scrollbar-thumb { background: rgba(203,180,236,0.3); border-radius: 3px; }
-    .log-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-    .log-bar .log-info { font-size: 12px; color: var(--ink-3); }
-    .log-toggle {
-      padding: 6px 16px; border-radius: 999px; border: 1px solid var(--hairline);
-      background: rgba(255,255,255,0.45); color: var(--ink-2); cursor: pointer;
-      font-size: 12px; transition: all 0.2s;
-    }
-    .log-toggle.active { background: var(--grad); color: #fff; border-color: transparent; }
-    /* ---- 历史表格 ---- */
-    .hist-search { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; }
-    .hist-search input {
-      flex: 1; height: 40px; padding: 0 14px; border: 1px solid var(--hairline);
-      border-radius: 10px; background: rgba(255,255,255,0.55); font-size: 13px; color: var(--ink);
-      outline: none;
-    }
-    .hist-search input:focus { border-color: var(--mist-violet); }
-    .hist-search button {
-      padding: 9px 22px; border-radius: 999px; border: none; cursor: pointer;
-      font-size: 12.5px; font-weight: 500; background: var(--grad); color: #fff;
-      transition: all 0.2s;
-    }
-    .hist-search button:hover { transform: translateY(-1px); }
-    .hist-table { width: 100%; border-collapse: collapse; }
-    .hist-table th {
-      text-align: left; font-size: 11px; font-weight: 500; letter-spacing: 0.1em;
-      color: var(--ink-3); padding: 8px 12px; border-bottom: 1px solid var(--hairline);
-    }
-    .hist-table td {
-      padding: 10px 12px; font-size: 13px; color: var(--ink);
-      border-bottom: 1px solid rgba(122,96,158,0.06); font-variant-numeric: tabular-nums;
-    }
-    .hist-table tr:hover td { background: rgba(203,180,236,0.05); }
-    .hist-pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 20px; }
-    .hist-pagination button {
-      width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--hairline);
-      background: rgba(255,255,255,0.45); color: var(--ink-2); cursor: pointer; font-size: 13px;
-    }
-    .hist-pagination button:disabled { opacity: 0.3; cursor: default; }
-    .hist-pagination span { font-size: 12px; color: var(--ink-3); }
-    .cfg-toast {
-      position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-60px);
-      padding: 12px 28px; border-radius: 12px; font-size: 13px; font-weight: 500;
-      background: rgba(255,255,255,0.88); border: 1px solid var(--mist-violet);
-      box-shadow: var(--shadow-float); color: var(--ink); z-index: 999;
-      backdrop-filter: blur(12px); opacity: 0; transition: all 0.35s var(--ease);
-      pointer-events: none;
-    }
-    .cfg-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .log-box::-webkit-scrollbar { width:5px; }
+    .log-box::-webkit-scrollbar-thumb { background:rgba(203,180,236,.3); border-radius:3px; }
+    /* ── 历史 ── */
+    .hs { display:flex; gap:10px; margin-bottom:18px; }
+    .hs input { flex:1; height:38px; padding:0 12px; border:1px solid var(--hairline); border-radius:10px; background:rgba(255,255,255,.55); font-size:13px; color:var(--ink); outline:none; }
+    .hs input:focus { border-color:var(--mist-violet); }
+    .hs button { padding:8px 20px; border-radius:999px; border:none; background:var(--grad); color:#fff; font-size:12px; cursor:pointer; }
+    .ht { width:100%; border-collapse:collapse; }
+    .ht th { text-align:left; font-size:11px; font-weight:500; letter-spacing:.1em; color:var(--ink-3); padding:7px 10px; border-bottom:1px solid var(--hairline); }
+    .ht td { padding:9px 10px; font-size:13px; color:var(--ink); border-bottom:1px solid rgba(122,96,158,.06); font-variant-numeric:tabular-nums; }
+    .ht tr:hover td { background:rgba(203,180,236,.05); }
+    .hp { display:flex; justify-content:center; align-items:center; gap:14px; margin-top:18px; }
+    .hp button { width:30px; height:30px; border-radius:7px; border:1px solid var(--hairline); background:rgba(255,255,255,.45); color:var(--ink-2); cursor:pointer; font-size:13px; }
+    .hp button:disabled { opacity:.3; cursor:default; }
+    .hp span { font-size:12px; color:var(--ink-3); }
+    .empty { text-align:center; color:var(--ink-3); padding:48px 0; font-size:13px; }
   </style>
 </head>
-
 <body>
 
-  <!-- 提示弹窗 -->
-  <div class="cfg-toast" id="toast"></div>
+<div id="toast"></div>
 
-  <!-- 标签页（标准 layui 结构，无额外包装） -->
-  <div class="layui-tab layui-tab-brief tg-glass" lay-filter="tg-tabs">
-    <ul class="layui-tab-title">
-      <li class="layui-this" data-tab="config">配置</li>
-      <li data-tab="downloads">下载</li>
-      <li data-tab="logs">日志</li>
-      <li data-tab="history">历史</li>
-    </ul>
-
-    <div class="layui-tab-content">
-      <!-- ========== 1. 配置 ========== -->
-      <div class="layui-tab-item layui-show" id="tab-config">
-          <!-- API 凭证 -->
-          <div class="cfg-section">
-            <div class="cfg-section-title">API 凭证</div>
-            <div class="cfg-row">
-              <div class="cfg-field" style="max-width:200px">
-                <label>API ID</label>
-                <input id="c-api-id" type="number" placeholder="my.telegram.org 获取">
-              </div>
-              <div class="cfg-field">
-                <label>API Hash</label>
-                <input id="c-api-hash" type="text" placeholder="已设置（修改时填入新值）">
-              </div>
-              <div class="cfg-field">
-                <label>Bot Token（可选）</label>
-                <input id="c-bot-token" type="text" placeholder="留空 = 不使用机器人">
-              </div>
-            </div>
-          </div>
-
-          <!-- 媒体类型 -->
-          <div class="cfg-section">
-            <div class="cfg-section-title">媒体类型</div>
-            <div class="cfg-chips" id="c-media-types">
-              <label><input type="checkbox" value="audio"> 音频</label>
-              <label><input type="checkbox" value="document"> 文档</label>
-              <label><input type="checkbox" value="photo"> 照片</label>
-              <label><input type="checkbox" value="video"> 视频</label>
-              <label><input type="checkbox" value="voice"> 语音</label>
-              <label><input type="checkbox" value="animation"> 动图</label>
-            </div>
-          </div>
-
-          <!-- 文件格式 -->
-          <div class="cfg-section">
-            <div class="cfg-section-title">文件格式（逗号分隔，all = 全部）</div>
-            <div class="cfg-row">
-              <div class="cfg-field"><label>音频</label><input id="c-ff-audio" value="all"></div>
-              <div class="cfg-field"><label>视频</label><input id="c-ff-video" value="all"></div>
-              <div class="cfg-field"><label>文档</label><input id="c-ff-document" value="all"></div>
-              <div class="cfg-field"><label>照片</label><input id="c-ff-photo" value="all"></div>
-            </div>
-          </div>
-
-          <!-- 下载目标 -->
-          <div class="cfg-section">
-            <div class="cfg-section-title">下载目标（频道 / 群组 / 收藏夹）</div>
-            <div id="c-chat-list"></div>
-            <button class="btn-ghost" style="margin-top:10px; padding:7px 18px; font-size:12px;"
-              onclick="addChat()">+ 添加</button>
-          </div>
-
-          <!-- 基本设置 -->
-          <div class="cfg-section">
-            <div class="cfg-section-title">基本设置</div>
-            <div class="cfg-row">
-              <div class="cfg-field" style="max-width:160px">
-                <label>最大并发</label>
-                <input id="c-max-task" type="number" value="5">
-              </div>
-              <div class="cfg-field" style="max-width:160px">
-                <label>语言</label>
-                <select id="c-language"><option value="EN">English</option><option value="ZH">中文</option></select>
-              </div>
-              <div class="cfg-field" style="max-width:160px">
-                <label>日期格式</label>
-                <input id="c-date-fmt" value="%Y_%m">
-              </div>
-              <div class="cfg-field" style="max-width:160px">
-                <label>登录密码（Web UI）</label>
-                <input id="c-web-secret" type="text" placeholder="留空 = 免登录">
-              </div>
-            </div>
-          </div>
-
-          <!-- 保存按钮 -->
-          <div class="cfg-save-bar">
-            <button class="btn-ghost" onclick="loadConfig()">重新加载</button>
-            <button class="btn-primary" onclick="saveConfig()">保存配置</button>
-          </div>
-        </div>
-
-        <!-- ========== 2. 下载 ========== -->
-        <div class="layui-tab-item" id="tab-downloads">
-          <div class="header-title" style="margin-bottom: 20px;">
-            <span style="font-size:14px; color:var(--ink-2);">实时下载进度</span>
-            <div class="stop-btn" id="download_state"
-              data-value="{{ download_state }}"
-              onclick="download_state_change(this)">
-              {{ {'pause': '暂停', 'continue': '继续'}[download_state] }}
-            </div>
-          </div>
-          <table class="layui-hide" id="download_list" lay-filter="download_list"></table>
-          <div style="margin-top:24px; border-top:1px solid var(--hairline); padding-top:20px;">
-            <div style="font-size:13px; color:var(--ink-3); margin-bottom:12px;">已下载</div>
-            <table class="layui-hide" id="already_download_list" lay-filter="already_download_list"></table>
-          </div>
-        </div>
-
-        <!-- ========== 3. 日志 ========== -->
-        <div class="layui-tab-item" id="tab-logs">
-          <div class="log-bar">
-            <span class="log-info" id="log-count">加载中…</span>
-            <button class="log-toggle active" id="log-auto" onclick="toggleLogAuto()">自动滚动</button>
-          </div>
-          <div class="log-terminal" id="log-box"></div>
-        </div>
-
-        <!-- ========== 4. 历史 ========== -->
-        <div class="layui-tab-item" id="tab-history">
-          <div class="hist-search">
-            <input id="hist-search" placeholder="搜索文件名…" onkeydown="if(event.key==='Enter')loadHistory()">
-            <button onclick="loadHistory()">搜索</button>
-          </div>
-          <table class="hist-table">
-            <thead>
-              <tr>
-                <th style="width:44%">文件名</th>
-                <th style="width:14%">大小</th>
-                <th style="width:20%">时间</th>
-                <th style="width:22%">路径</th>
-              </tr>
-            </thead>
-            <tbody id="hist-body"></tbody>
-          </table>
-          <div class="hist-pagination">
-            <button id="hist-prev" onclick="histPage(-1)">‹</button>
-            <span id="hist-page">1 / 1</span>
-            <button id="hist-next" onclick="histPage(1)">›</button>
-          </div>
-        </div>
-    </div><!-- /layui-tab-content -->
-  </div><!-- /layui-tab -->
-
-  <!-- 底部悬浮条 -->
-  <div class="layui-footer" id="footer-bar">
-    <span>版本 <b id="app_version" style="color:var(--mist-violet);">—</b></span>
-    <span id="download_speed_title" style="font-variant-numeric:tabular-nums;">0.00 B/s</span>
+<div class="tg-glass" style="max-width:1060px; margin:0 auto;">
+  <!-- 导航 -->
+  <div class="nav">
+    <button class="nav-btn on" onclick="showTab('config',this)">配置</button>
+    <button class="nav-btn" onclick="showTab('downloads',this)">下载</button>
+    <button class="nav-btn" onclick="showTab('logs',this)">日志</button>
+    <button class="nav-btn" onclick="showTab('history',this)">历史</button>
   </div>
 
-  <script src="static/layui/layui.js"></script>
-  <script>
-  /* ================================================================
-     全局状态 & 工具
-     ================================================================ */
-  var _logAuto = true, _histPage = 1, _histTotal = 0;
-  function showToast(msg) {
-    var t = document.getElementById('toast');
-    t.textContent = msg; t.classList.add('show');
-    setTimeout(function(){ t.classList.remove('show'); }, 2400);
-  }
+  <!-- ═══════ 1. 配置 ═══════ -->
+  <section class="on" id="p-config">
+    <div class="f-section">
+      <div class="f-label">API 凭证</div>
+      <div class="f-row">
+        <div class="f-field" style="max-width:180px"><label>API ID</label><input id="c-apid" type="number"></div>
+        <div class="f-field"><label>API Hash</label><input id="c-apih" type="text" placeholder="已设置（修改时填入新值）"></div>
+        <div class="f-field"><label>Bot Token（可选）</label><input id="c-bot" type="text" placeholder="留空 = 不使用机器人"></div>
+      </div>
+    </div>
+    <div class="f-section">
+      <div class="f-label">媒体类型</div>
+      <div class="chips" id="c-media">
+        <label><input type="checkbox" value="audio"> 音频</label>
+        <label><input type="checkbox" value="document"> 文档</label>
+        <label><input type="checkbox" value="photo"> 照片</label>
+        <label><input type="checkbox" value="video"> 视频</label>
+        <label><input type="checkbox" value="voice"> 语音</label>
+        <label><input type="checkbox" value="animation"> 动图</label>
+      </div>
+    </div>
+    <div class="f-section">
+      <div class="f-label">文件格式（逗号分隔，all = 全部）</div>
+      <div class="f-row">
+        <div class="f-field"><label>音频</label><input id="c-fa" value="all"></div>
+        <div class="f-field"><label>视频</label><input id="c-fv" value="all"></div>
+        <div class="f-field"><label>文档</label><input id="c-fd" value="all"></div>
+        <div class="f-field"><label>照片</label><input id="c-fp" value="all"></div>
+      </div>
+    </div>
+    <div class="f-section">
+      <div class="f-label">下载目标（频道 / 群组 / 收藏夹）</div>
+      <div id="c-chats"></div>
+      <button class="bh" style="margin-top:8px;padding:6px 16px;font-size:12px" onclick="addChat()">+ 添加</button>
+    </div>
+    <div class="f-section">
+      <div class="f-label">基本设置</div>
+      <div class="f-row">
+        <div class="f-field" style="max-width:140px"><label>最大并发</label><input id="c-mt" type="number" value="5"></div>
+        <div class="f-field" style="max-width:140px"><label>语言</label><select id="c-lang"><option value="EN">English</option><option value="ZH">中文</option></select></div>
+        <div class="f-field" style="max-width:140px"><label>日期格式</label><input id="c-df" value="%Y_%m"></div>
+        <div class="f-field"><label>登录密码（Web UI）</label><input id="c-ws" type="text" placeholder="留空 = 免登录"></div>
+      </div>
+    </div>
+    <div class="bar">
+      <button class="bh" onclick="loadCfg()">重新加载</button>
+      <button class="bg" onclick="saveCfg()">保存配置</button>
+    </div>
+  </section>
 
-  /* ================================================================
-     layui 初始化
-     ================================================================ */
-  layui.use(['table', 'element'], function () {
-    var table = layui.table, element = layui.element, $ = layui.$;
+  <!-- ═══════ 2. 下载 ═══════ -->
+  <section id="p-downloads">
+    <div class="dl-head">
+      <span>实时下载进度</span>
+      <div class="stop-btn" id="download_state" data-value="{{ download_state }}"
+        onclick="dlToggle(this)">{{ {'pause':'暂停','continue':'继续'}[download_state] }}</div>
+    </div>
+    <table class="layui-hide" id="download_list" lay-filter="download_list"></table>
+    <hr class="dl-sep">
+    <div class="dl-label">已下载</div>
+    <table class="layui-hide" id="already_download_list" lay-filter="already_download_list"></table>
+  </section>
 
-    /* ---- 版本 ---- */
-    $.ajax({ url: "get_app_version", type: "get", async: false, dataType: "text",
-      success: function(r){ $("#app_version").html(r); }});
+  <!-- ═══════ 3. 日志 ═══════ -->
+  <section id="p-logs">
+    <div class="log-bar">
+      <span id="log-n">加载中…</span>
+      <button class="log-toggle on" id="log-auto" onclick="logAutoToggle()">自动滚动</button>
+    </div>
+    <div class="log-box" id="log-box"></div>
+  </section>
 
-    /* ---- 暂停/继续 ---- */
-    window.download_state_change = function(e) {
-      $.ajax({ url: "set_download_state?state=" + e.dataset.value, type: "post",
-        async: false, dataType: "text",
-        success: function(r){
-          $("#download_state").html(r === 'pause' ? '暂停' : '继续');
-          e.dataset.value = r;
-        }});
-    };
+  <!-- ═══════ 4. 历史 ═══════ -->
+  <section id="p-history">
+    <div class="hs">
+      <input id="h-q" placeholder="搜索文件名…" onkeydown="if(event.key==='Enter')hLoad()">
+      <button onclick="hLoad()">搜索</button>
+    </div>
+    <table class="ht"><thead><tr>
+      <th style="width:44%">文件名</th><th style="width:14%">大小</th><th style="width:20%">时间</th><th style="width:22%">路径</th>
+    </tr></thead><tbody id="h-body"></tbody></table>
+    <div class="hp">
+      <button id="h-prev" onclick="hPage(-1)">‹</button>
+      <span id="h-info">1 / 1</span>
+      <button id="h-next" onclick="hPage(1)">›</button>
+    </div>
+  </section>
+</div>
 
-    /* ---- 下载中表格 ---- */
-    var dlData = [];
-    table.render({ elem: '#download_list', data: dlData, height: 'full-340', limit: 10000,
-      cols: [[
-        { field: 'chat', title: '会话', width: 100 },
-        { field: 'id', title: 'ID', width: 80 },
-        { field: 'filename', title: '文件名' },
-        { field: 'total_size', title: '总大小', width: 100 },
-        { field: 'download_progress', title: '进度', templet: function(d){
-          var cls = 100==d.download_progress?'layui-bg-green': d.download_progress>30?'layui-bg-blue':'layui-bg-red';
-          return '<div class="layui-progress layui-progress-big" lay-showpercent="true" lay-filter="down-'+d.id+'"><div class="layui-progress-bar '+cls+'" lay-percent="'+d.download_progress+'%"></div></div>';
-        }},
-        { field: 'download_speed', title: '速度', width: 110 }
-      ]], done: function(){ element.render(); }
-    });
+<!-- 底部状态条 -->
+<div class="layui-footer" id="footer-bar">
+  <span>版本 <b id="app_version" style="color:var(--mist-violet)">—</b></span>
+  <span id="download_speed_title" style="font-variant-numeric:tabular-nums">0.00 B/s</span>
+</div>
 
-    /* ---- 已下载表格 ---- */
-    table.render({ elem: '#already_download_list', data: [], height: 260, limit: 10000,
-      cols: [[
-        { field: 'id', title: 'ID', width: 80 },
-        { field: 'filename', title: '文件名' },
-        { field: 'total_size', title: '大小', width: 100 },
-        { field: 'save_path', title: '路径' }
-      ]], done: function(){ element.render(); }
-    });
+<script src="static/layui/layui.js"></script>
+<script>
+/* ── 全局 ── */
+var _logAuto=true, _hPg=1, _hT=0, _logTmr=null;
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200);}
 
-    /* ---- 轮询：下载列表 + 速度 ---- */
-    setInterval(function(){
-      $.ajax({ url: "get_download_list?already_down=false", type: "get", dataType: "json",
-        success: function(res){
-          var tbody = $('div[lay-id="download_list"] .layui-table-body .layui-table tbody');
-          var ids = {};
-          for(var i=0;i<res.length;i++){
-            ids[res[i].chat+'-'+res[i].id] = true;
-            var exist = tbody.find('tr[data-index="'+res[i].chat+'-'+res[i].id+'"]');
-            if(exist.length){
-              exist.find('[data-field="download_progress"]').html(
-                '<div class="layui-progress layui-progress-big" lay-showpercent="true"><div class="layui-progress-bar '+(res[i].download_progress==100?'layui-bg-green':res[i].download_progress>30?'layui-bg-blue':'layui-bg-red')+'" style="width:'+res[i].download_progress+'%"><span class="layui-progress-text">'+res[i].download_progress+'%</span></div></div>');
-              exist.find('[data-field="download_speed"]').html('<div class="layui-table-cell">'+res[i].download_speed+'</div>');
-              if(res[i].download_progress==100) exist.remove();
-            } else if(res[i].download_progress<100){
-              tbody.append('<tr data-index="'+res[i].chat+'-'+res[i].id+'">'
-                +'<td data-field="chat"><div class="layui-table-cell">'+res[i].chat+'</div></td>'
-                +'<td data-field="id"><div class="layui-table-cell">'+res[i].id+'</div></td>'
-                +'<td data-field="filename"><div class="layui-table-cell">'+res[i].filename+'</div></td>'
-                +'<td data-field="total_size"><div class="layui-table-cell">'+res[i].total_size+'</div></td>'
-                +'<td data-field="download_progress"><div class="layui-table-cell"><div class="layui-progress layui-progress-big" lay-showpercent="true"><div class="layui-progress-bar layui-bg-blue" style="width:'+res[i].download_progress+'%"><span class="layui-progress-text">'+res[i].download_progress+'%</span></div></div></div></td>'
-                +'<td data-field="download_speed"><div class="layui-table-cell">'+res[i].download_speed+'</div></td></tr>');
-            }
-          }
-          // 移除已完成的
-          tbody.find('tr').each(function(){
-            var idx = $(this).attr('data-index');
-            if(idx && !ids[idx]) $(this).remove();
-          });
-        }});
-      $.ajax({ url: "get_download_status", type: "get", dataType: "json",
-        success: function(r){ $("#download_speed_title").html(r.download_speed); }});
-    }, 1200);
+/* ── 标签页切换 ── */
+function showTab(key,btn){
+  document.querySelectorAll('.panes section, .tg-glass > section').forEach(function(s){s.classList.remove('on')});
+  document.getElementById('p-'+key).classList.add('on');
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('on')});
+  btn.classList.add('on');
+  if(key==='logs'){startLog();}else{stopLog();}
+  if(key==='history'){hLoad();}
+}
 
-    /* ---- 轮询：已下载列表 ---- */
-    var adData = [];
-    setInterval(function(){
-      $.ajax({ url: "get_download_list?already_down=true", type: "get", dataType: "json",
-        success: function(res){
-          for(var i=0;i<res.length;i++){
-            var exists=false;
-            for(var j=0;j<adData.length;j++) if(adData[j].id==res[i].id){exists=true;break;}
-            if(!exists) adData.push(res[i]);
-          }
-          table.reload('already_download_list', { data: adData });
-        }});
-    }, 2000);
+/* ── 版本 ── */
+(function(){var x=new XMLHttpRequest();x.open('GET','get_app_version',false);x.send();document.getElementById('app_version').textContent=x.responseText;})();
+
+/* ── layui 表格初始化（下载标签页） ── */
+layui.use(['table','element'],function(){
+  var table=layui.table,el=layui.element,$=layui.$;
+
+  table.render({elem:'#download_list',data:[],height:'full-320',limit:10000,
+    cols:[[
+      {field:'chat',title:'会话',width:90},
+      {field:'id',title:'ID',width:70},
+      {field:'filename',title:'文件名'},
+      {field:'total_size',title:'大小',width:90},
+      {field:'download_progress',title:'进度',templet:function(d){
+        var c=d.download_progress==100?'layui-bg-green':d.download_progress>30?'layui-bg-blue':'layui-bg-red';
+        return '<div class="layui-progress layui-progress-big" lay-showpercent="true"><div class="layui-progress-bar '+c+'" lay-percent="'+d.download_progress+'%"></div></div>';
+      }},
+      {field:'download_speed',title:'速度',width:100}
+    ]],done:function(){el.render();}
   });
 
-  /* ================================================================
-     标签页切换
-     ================================================================ */
-  layui.element.on('tab(tg-tabs)', function(data){
-    var key = data.elem.children().eq(data.index).attr('data-tab');
-    if(key === 'logs') startLogPoll();
-    else stopLogPoll();
-    if(key === 'history') loadHistory();
+  table.render({elem:'#already_download_list',data:[],height:240,limit:10000,
+    cols:[[
+      {field:'id',title:'ID',width:70},
+      {field:'filename',title:'文件名'},
+      {field:'total_size',title:'大小',width:90},
+      {field:'save_path',title:'路径'}
+    ]],done:function(){el.render();}
   });
 
-  /* ================================================================
-     配置：加载 & 保存
-     ================================================================ */
-  function loadConfig(){
-    $.getJSON('get_config', function(c){
-      $('#c-api-id').val(c.api_id);
-      $('#c-api-hash').val(c.api_hash_set ? '****' : '').attr('placeholder', c.api_hash_set ? '已设置（修改时填入新值）' : '未设置');
-      $('#c-bot-token').val(c.bot_token);
-      // 媒体类型
-      $('#c-media-types input[type="checkbox"]').each(function(){ $(this).prop('checked', c.media_types.indexOf(this.value)>=0); });
-      // 文件格式
-      $('#c-ff-audio').val(c.file_formats.audio);
-      $('#c-ff-video').val(c.file_formats.video);
-      $('#c-ff-document').val(c.file_formats.document);
-      $('#c-ff-photo').val(c.file_formats.photo);
-      // 基本设置
-      $('#c-max-task').val(c.max_download_task);
-      $('#c-language').val(c.language);
-      $('#c-date-fmt').val(c.date_format);
-      $('#c-web-secret').val(c.web_login_secret);
-      // 聊天列表
-      var list = $('#c-chat-list'); list.empty();
-      (c.chat||[]).forEach(function(ch){ addChat(ch); });
-    });
-  }
-  function addChat(ch){
-    ch = ch || {};
-    var card = $('<div class="chat-card"></div>');
-    card.append('<input class="chat-id" placeholder="chat_id（如 me / @channel / -100xxx）" value="'+(ch.chat_id||'')+'">');
-    card.append('<input class="chat-lr" type="number" placeholder="last_read_msg_id" value="'+(ch.last_read_message_id||0)+'" style="max-width:170px">');
-    card.append('<button class="chat-del" onclick="$(this).parent().remove()">×</button>');
-    $('#c-chat-list').append(card);
-  }
-  function saveConfig(){
-    var media = [];
-    $('#c-media-types input:checked').each(function(){ media.push(this.value); });
-    var chats = [];
-    $('#c-chat-list .chat-card').each(function(){
-      var id = $(this).find('.chat-id').val().trim();
-      if(id) chats.push({ chat_id: /^\d+$/.test(id)?parseInt(id):id, last_read_message_id: parseInt($(this).find('.chat-lr').val())||0 });
-    });
-    var payload = {
-      api_id: parseInt($('#c-api-id').val()) || null,
-      api_hash: $('#c-api-hash').val(),
-      bot_token: $('#c-bot-token').val(),
-      media_types: media,
-      file_formats: {
-        audio: $('#c-ff-audio').val(), video: $('#c-ff-video').val(),
-        document: $('#c-ff-document').val(), photo: $('#c-ff-photo').val()
-      },
-      max_download_task: parseInt($('#c-max-task').val()) || 5,
-      language: $('#c-language').val(),
-      date_format: $('#c-date-fmt').val(),
-      web_login_secret: $('#c-web-secret').val(),
-      chat: chats
-    };
-    $.ajax({ url: 'save_config', type: 'POST', contentType: 'application/json',
-      data: JSON.stringify(payload),
-      success: function(r){ showToast(r.msg || '已保存'); },
-      error: function(){ showToast('保存失败'); }
-    });
-  }
-  loadConfig();
+  /* ── 轮询下载列表 ── */
+  setInterval(function(){
+    $.ajax({url:'get_download_list?already_down=false',type:'get',dataType:'json',
+      success:function(res){
+        var tb=$('div[lay-id="download_list"] .layui-table-body .layui-table tbody');
+        var ids={};
+        for(var i=0;i<res.length;i++){
+          var k=res[i].chat+'-'+res[i].id;ids[k]=true;
+          var ex=tb.find('tr[data-index="'+k+'"]');
+          if(ex.length){
+            if(res[i].download_progress>=100)ex.remove();
+          } else if(res[i].download_progress<100){
+            tb.append('<tr data-index="'+k+'">'
+              +'<td data-field="chat"><div class="layui-table-cell">'+res[i].chat+'</div></td>'
+              +'<td data-field="id"><div class="layui-table-cell">'+res[i].id+'</div></td>'
+              +'<td data-field="filename"><div class="layui-table-cell">'+res[i].filename+'</div></td>'
+              +'<td data-field="total_size"><div class="layui-table-cell">'+res[i].total_size+'</div></td>'
+              +'<td data-field="download_progress"><div class="layui-table-cell"><div class="layui-progress layui-progress-big" lay-showpercent="true"><div class="layui-progress-bar layui-bg-blue" style="width:'+res[i].download_progress+'%"><span class="layui-progress-text">'+res[i].download_progress+'%</span></div></div></div></td>'
+              +'<td data-field="download_speed"><div class="layui-table-cell">'+res[i].download_speed+'</div></td></tr>');
+          }
+        }
+        tb.find('tr').each(function(){var idx=$(this).attr('data-index');if(idx&&!ids[idx])$(this).remove();});
+      }});
+    $.ajax({url:'get_download_status',type:'get',dataType:'json',
+      success:function(r){document.getElementById('download_speed_title').textContent=r.download_speed;}});
+  },1200);
 
-  /* ================================================================
-     日志
-     ================================================================ */
-  var _logTimer = null;
-  function startLogPoll(){
-    if(_logTimer) return;
-    _logTimer = setInterval(pollLogs, 2000);
-    pollLogs();
-  }
-  function stopLogPoll(){ if(_logTimer){ clearInterval(_logTimer); _logTimer=null; } }
-  function pollLogs(){
-    $.getJSON('get_logs?lines=200', function(lines){
-      var box = $('#log-box');
-      box.text(lines.join('\n'));
-      $('#log-count').text(lines.length + ' 行');
-      if(_logAuto) box.scrollTop(box[0].scrollHeight);
-    });
-  }
-  function toggleLogAuto(){
-    _logAuto = !_logAuto;
-    $('#log-auto').toggleClass('active', _logAuto).text(_logAuto ? '自动滚动' : '已暂停');
-  }
+  setInterval(function(){
+    $.ajax({url:'get_download_list?already_down=true',type:'get',dataType:'json',
+      success:function(res){
+        var d=table.cache['already_download_list']||[];
+        var ids={};for(var j=0;j<d.length;j++)ids[d[j].id]=1;
+        for(var i=0;i<res.length;i++)if(!ids[res[i].id])d.push(res[i]);
+        table.reload('already_download_list',{data:d});
+      }});
+  },2000);
+});
 
-  /* ================================================================
-     历史
-     ================================================================ */
-  function loadHistory(){
-    $.getJSON('get_history?page='+_histPage+'&per_page=30&search='+encodeURIComponent($('#hist-search').val()||''),
-      function(d){
-        _histTotal = d.total;
-        var pages = Math.max(1, Math.ceil(d.total/30));
-        $('#hist-page').text(_histPage + ' / ' + pages + '  ·  ' + d.total + ' 个文件');
-        $('#hist-prev').prop('disabled', _histPage<=1);
-        $('#hist-next').prop('disabled', _histPage>=pages);
-        var tbody = $('#hist-body'); tbody.empty();
-        if(!d.files.length){ tbody.append('<tr><td colspan="4" style="text-align:center;color:var(--ink-3);padding:40px 0">暂无文件</td></tr>'); return; }
-        d.files.forEach(function(f){
-          tbody.append('<tr><td>'+f.name+'</td><td>'+f.size_str+'</td><td>'+f.mtime_str+'</td><td style="color:var(--ink-3);font-size:12px">'+f.path+'</td></tr>');
-        });
-      });
-  }
-  function histPage(dir){ _histPage = Math.max(1, _histPage+dir); loadHistory(); }
-  </script>
+/* ── 暂停/继续 ── */
+function dlToggle(el){
+  var x=new XMLHttpRequest();
+  x.open('POST','set_download_state?state='+el.dataset.value,false);
+  x.send();
+  var r=x.responseText;
+  el.innerHTML=r==='pause'?'暂停':'继续';
+  el.dataset.value=r;
+}
+
+/* ── 配置 ── */
+function loadCfg(){
+  var x=new XMLHttpRequest();x.open('GET','get_config',false);x.send();
+  var c=JSON.parse(x.responseText);
+  document.getElementById('c-apid').value=c.api_id||'';
+  document.getElementById('c-apih').value=c.api_hash_set?c.api_hash:'';
+  document.getElementById('c-apih').placeholder=c.api_hash_set?'已设置（修改时填入新值）':'未设置';
+  document.getElementById('c-bot').value=c.bot_token||'';
+  document.querySelectorAll('#c-media input[type="checkbox"]').forEach(function(cb){
+    cb.checked=(c.media_types||[]).indexOf(cb.value)>=0;
+  });
+  document.getElementById('c-fa').value=(c.file_formats||{}).audio||'all';
+  document.getElementById('c-fv').value=(c.file_formats||{}).video||'all';
+  document.getElementById('c-fd').value=(c.file_formats||{}).document||'all';
+  document.getElementById('c-fp').value=(c.file_formats||{}).photo||'all';
+  document.getElementById('c-mt').value=c.max_download_task||5;
+  document.getElementById('c-lang').value=c.language||'EN';
+  document.getElementById('c-df').value=c.date_format||'%Y_%m';
+  document.getElementById('c-ws').value=c.web_login_secret||'';
+  var cl=document.getElementById('c-chats');cl.innerHTML='';
+  (c.chat||[]).forEach(function(ch){addChat(ch);});
+}
+function addChat(ch){
+  ch=ch||{};
+  var d=document.createElement('div');d.className='cc';
+  d.innerHTML='<input class="cid" placeholder="chat_id（me / @channel / -100xxx）" value="'+(ch.chat_id||'')+'">'
+    +'<input class="clr" type="number" placeholder="last_read_msg_id" value="'+(ch.last_read_message_id||0)+'" style="max-width:160px">'
+    +'<button class="x" onclick="this.parentNode.remove()">×</button>';
+  document.getElementById('c-chats').appendChild(d);
+}
+function saveCfg(){
+  var media=[];
+  document.querySelectorAll('#c-media input:checked').forEach(function(cb){media.push(cb.value);});
+  var chats=[];
+  document.querySelectorAll('#c-chats .cc').forEach(function(el){
+    var id=el.querySelector('.cid').value.trim();
+    if(id)chats.push({chat_id:/^\d+$/.test(id)?parseInt(id):id,last_read_message_id:parseInt(el.querySelector('.clr').value)||0});
+  });
+  var p={
+    api_id:parseInt(document.getElementById('c-apid').value)||null,
+    api_hash:document.getElementById('c-apih').value,
+    bot_token:document.getElementById('c-bot').value,
+    media_types:media,
+    file_formats:{
+      audio:document.getElementById('c-fa').value,
+      video:document.getElementById('c-fv').value,
+      document:document.getElementById('c-fd').value,
+      photo:document.getElementById('c-fp').value
+    },
+    max_download_task:parseInt(document.getElementById('c-mt').value)||5,
+    language:document.getElementById('c-lang').value,
+    date_format:document.getElementById('c-df').value,
+    web_login_secret:document.getElementById('c-ws').value,
+    chat:chats
+  };
+  var x=new XMLHttpRequest();x.open('POST','save_config',false);
+  x.setRequestHeader('Content-Type','application/json');
+  x.send(JSON.stringify(p));
+  var r=JSON.parse(x.responseText);
+  toast(r.msg||'已保存');
+}
+loadCfg();
+
+/* ── 日志 ── */
+function startLog(){if(_logTmr)return;_logTmr=setInterval(pollLog,2000);pollLog();}
+function stopLog(){if(_logTmr){clearInterval(_logTmr);_logTmr=null;}}
+function pollLog(){
+  var x=new XMLHttpRequest();x.open('GET','get_logs?lines=200',false);x.send();
+  var lines=JSON.parse(x.responseText);
+  document.getElementById('log-box').textContent=lines.join('\n');
+  document.getElementById('log-n').textContent=lines.length+' 行';
+  if(_logAuto){var b=document.getElementById('log-box');b.scrollTop=b.scrollHeight;}
+}
+function logAutoToggle(){
+  _logAuto=!_logAuto;
+  var btn=document.getElementById('log-auto');
+  btn.className='log-toggle'+(_logAuto?' on':'');
+  btn.textContent=_logAuto?'自动滚动':'已暂停';
+}
+
+/* ── 历史 ── */
+function hLoad(){
+  var q=encodeURIComponent(document.getElementById('h-q').value||'');
+  var x=new XMLHttpRequest();x.open('GET','get_history?page='+_hPg+'&per_page=30&search='+q,false);x.send();
+  var d=JSON.parse(x.responseText);
+  _hT=d.total;
+  var pg=Math.max(1,Math.ceil(d.total/30));
+  document.getElementById('h-info').textContent=_hPg+' / '+pg+'  ·  '+d.total+' 个文件';
+  document.getElementById('h-prev').disabled=_hPg<=1;
+  document.getElementById('h-next').disabled=_hPg>=pg;
+  var tb=document.getElementById('h-body');tb.innerHTML='';
+  if(!d.files.length){tb.innerHTML='<tr><td colspan="4" class="empty">暂无文件</td></tr>';return;}
+  d.files.forEach(function(f){
+    tb.innerHTML+='<tr><td>'+f.name+'</td><td>'+f.size_str+'</td><td>'+f.mtime_str+'</td><td style="color:var(--ink-3);font-size:12px">'+f.path+'</td></tr>';
+  });
+}
+function hPage(d){_hPg=Math.max(1,_hPg+d);hLoad();}
+</script>
 </body>
 </html>
