@@ -61,8 +61,7 @@ class AppTestCase(unittest.TestCase):
         )
 
     @mock.patch("__main__.__builtins__.open", new_callable=mock.mock_open)
-    @mock.patch("module.app.yaml", autospec=True)
-    def test_update_config(self, mock_yaml, mock_open):
+    def test_update_config(self, mock_open):
         app = Application("", "")
         app.config_file = "config_test.yaml"
         app.app_data_file = "data_test.yaml"

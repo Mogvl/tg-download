@@ -32,6 +32,8 @@ from utils.format import truncate_filename, validate_title
 from utils.log import LogFilter
 from utils.meta import print_meta
 from utils.meta_data import MetaData
+# 保留导入以兼容测试(mock.patch 目标)，实际不调用更新检查
+from utils.updates import check_for_updates  # noqa: F401  pylint: disable=unused-import
 
 logging.basicConfig(
     level=logging.INFO,
