@@ -74,6 +74,20 @@
     }
     .log-box::-webkit-scrollbar { width:5px; }
     .log-box::-webkit-scrollbar-thumb { background:rgba(203,180,236,.3); border-radius:3px; }
+    /* 日志列表 */
+    .log-list { max-height:480px; overflow-y:auto; border-radius:14px; border:1px solid rgba(122,96,158,.08); background:rgba(255,255,255,.3); }
+    .log-list::-webkit-scrollbar { width:5px; }
+    .log-list::-webkit-scrollbar-thumb { background:rgba(203,180,236,.3); border-radius:3px; }
+    .log-item { display:flex; gap:10px; padding:8px 16px; border-bottom:1px solid rgba(122,96,158,.05); font-size:12.5px; line-height:1.6; transition:background .15s; }
+    .log-item:last-child { border-bottom:none; }
+    .log-item:hover { background:rgba(203,180,236,.06); }
+    .log-time { color:var(--ink-3); font-family:"SF Mono","JetBrains Mono",monospace; font-size:11px; white-space:nowrap; min-width:70px; }
+    .log-level { font-weight:600; font-size:10px; letter-spacing:.08em; padding:1px 8px; border-radius:4px; white-space:nowrap; min-width:52px; text-align:center; }
+    .log-level.INFO { background:rgba(203,180,236,.15); color:var(--mist-violet); }
+    .log-level.SUCCESS { background:rgba(180,220,195,.2); color:#6db88a; }
+    .log-level.WARNING { background:rgba(240,196,214,.2); color:#c47a8e; }
+    .log-level.ERROR { background:rgba(239,68,68,.1); color:#c45a5a; }
+    .log-msg { color:var(--ink); flex:1; word-break:break-all; }
     /* ── 历史 ── */
     .hs { display:flex; gap:10px; margin-bottom:18px; }
     .hs input { flex:1; height:38px; padding:0 12px; border:1px solid var(--hairline); border-radius:10px; background:rgba(255,255,255,.55); font-size:13px; color:var(--ink); outline:none; }
@@ -222,9 +236,13 @@
   <section id="p-logs">
     <div class="log-bar">
       <span id="log-n">加载中…</span>
-      <button class="log-toggle on" id="log-auto" onclick="logAutoToggle()">自动滚动</button>
+      <div style="display:flex;gap:8px">
+        <button class="log-toggle on" id="log-auto" onclick="logAutoToggle()">自动滚动</button>
+        <button class="log-toggle" id="log-mode" onclick="logModeToggle()">列表视图</button>
+      </div>
     </div>
     <div class="log-box" id="log-box"></div>
+    <div class="log-list" id="log-list" style="display:none"></div>
   </section>
 
   <!-- ═══════ 4. 历史 ═══════ -->
@@ -259,7 +277,7 @@
 <script src="static/layui/layui.js"></script>
 <script>
 /* ── 全局 ── */
-var _logAuto=true, _hPg=1, _hT=0, _logTmr=null;
+var _logAuto=true, _hPg=1, _hT=0, _logTmr=null, _logListMode=false;
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200);}
 
 /* ── 标签页切换 ── */
@@ -496,12 +514,36 @@ function pollLog(){
   document.getElementById('log-box').textContent=lines.join('\n');
   document.getElementById('log-n').textContent=lines.length+' 行';
   if(_logAuto){var b=document.getElementById('log-box');b.scrollTop=b.scrollHeight;}
+  if(_logListMode)renderLogList(lines);
+}
+function renderLogList(lines){
+  var el=document.getElementById('log-list');
+  var html='';
+  for(var i=lines.length-1;i>=0;i--){
+    var line=lines[i];
+    var m=line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s*\|\s*(INFO|SUCCESS|WARNING|ERROR)\s*\|\s*[^|]*\s*-\s*(.*)/);
+    if(m){
+      html+='<div class="log-item"><span class="log-time">'+m[1].slice(11)+'</span><span class="log-level '+m[2]+'">'+m[2]+'</span><span class="log-msg">'+m[3]+'</span></div>';
+    }else{
+      html+='<div class="log-item"><span class="log-time"></span><span class="log-level INFO">LOG</span><span class="log-msg">'+line+'</span></div>';
+    }
+  }
+  el.innerHTML=html;
+  if(_logAuto)el.scrollTop=0;
 }
 function logAutoToggle(){
   _logAuto=!_logAuto;
-  var btn=document.getElementById('log-auto');
-  btn.className='log-toggle'+(_logAuto?' on':'');
-  btn.textContent=_logAuto?'自动滚动':'已暂停';
+  document.getElementById('log-auto').className='log-toggle'+(_logAuto?' on':'');
+  document.getElementById('log-auto').textContent=_logAuto?'自动滚动':'已暂停';
+}
+function logModeToggle(){
+  _logListMode=!_logListMode;
+  var btn=document.getElementById('log-mode');
+  btn.className='log-toggle'+(_logListMode?' on':'');
+  btn.textContent=_logListMode?'终端视图':'列表视图';
+  document.getElementById('log-box').style.display=_logListMode?'none':'block';
+  document.getElementById('log-list').style.display=_logListMode?'block':'none';
+  if(_logListMode){var x=new XMLHttpRequest();x.open('GET','get_logs?lines=200',false);x.send();renderLogList(JSON.parse(x.responseText));}
 }
 
 /* ── 历史 ── */
