@@ -188,6 +188,24 @@
           <div class="dl-empty-icon">◇</div>
           <div>暂无已下载文件</div>
         </div>
+        <!-- 翻页 -->
+        <div class="dl-page" id="dl-done-page">
+          <div class="dl-page-size">
+            每页
+            <select id="dl-done-pps" onchange="dlDoneGo(1)">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+            条
+          </div>
+          <div class="dl-page-nav">
+            <button onclick="dlDoneGo(-1)" id="dl-done-prev">‹</button>
+            <span id="dl-done-info">1 / 1</span>
+            <button onclick="dlDoneGo(1)" id="dl-done-next">›</button>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -317,17 +335,39 @@ layui.use(['table','element'],function(){
   },2000);
 });
 
-/* ── 从文件系统加载"已下载"列表 ── */
+/* ── 从文件系统加载"已下载"列表（带翻页） ── */
+var _ddPg=1, _ddTotal=0;
 function loadAlreadyFromDisk(){
-  var x=new XMLHttpRequest();x.open('GET','get_history?page=1&per_page=50',false);x.send();
+  var pps=parseInt(document.getElementById('dl-done-pps').value)||10;
+  var x=new XMLHttpRequest();
+  x.open('GET','get_history?page='+_ddPg+'&per_page='+pps,false);
+  x.send();
   if(x.status!==200)return;
   var d=JSON.parse(x.responseText);
+  _ddTotal=d.total||0;
   var rows=[];
   (d.files||[]).forEach(function(f){
     rows.push({id:f.name,filename:f.name,total_size:f.size_str,save_path:f.path});
   });
-  layui.table.reload('already_download_list',{data:rows});
+  layui.table.reload('already_download_list',{data:rows,height: Math.min(rows.length*42+50, 420)});
   document.getElementById('dl-empty-done').className = rows.length ? 'dl-empty' : 'dl-empty show';
+  // 翻页信息
+  var pages=Math.max(1,Math.ceil(_ddTotal/pps));
+  document.getElementById('dl-done-info').textContent=_ddPg+' / '+pages+'  ·  '+_ddTotal+' 条';
+  document.getElementById('dl-done-prev').disabled=_ddPg<=1;
+  document.getElementById('dl-done-next').disabled=_ddPg>=pages;
+}
+function dlDoneGo(dir){
+  if(dir===-1){
+    _ddPg=Math.max(1,_ddPg-1);
+  }else if(dir===1){
+    var pps=parseInt(document.getElementById('dl-done-pps').value)||10;
+    var pages=Math.max(1,Math.ceil(_ddTotal/pps));
+    _ddPg=Math.min(pages,_ddPg+1);
+  }else{
+    _ddPg=dir; // 直接跳页
+  }
+  loadAlreadyFromDisk();
 }
 
 /* ── 暂停/继续 ── */
