@@ -291,7 +291,8 @@ function showTab(key,btn){
   if(key==='history'){hLoad();}
   if(key==='downloads'&&_dlTableReady){
     // layui 表格在隐藏容器里宽度为0，切到可见后必须 resize
-    setTimeout(function(){ layui.table.resize('download_list'); layui.table.resize('already_download_list'); },80);
+    setTimeout(function(){ layui.table.resize('download_list'); layui.table.resize('already_download_list'); },150);
+    setTimeout(function(){ layui.table.resize('download_list'); layui.table.resize('already_download_list'); },400);
     loadAlreadyFromDisk();
   }
 }

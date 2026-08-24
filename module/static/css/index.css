@@ -304,57 +304,75 @@ button.stop-btn:hover {
 button.stop-btn:active { transform: scale(0.96); }
 
 /* ---- 表格：全覆盖 layui 默认样式 ---- */
+/* 表格容器 */
 .layui-table-view,
-.layui-table-view.layui-table-view {
+.layui-table-view.layui-table-view,
+div[lay-id="download_list"],
+div[lay-id="already_download_list"] {
   margin: 0 !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   border-radius: 0 !important;
+  height: auto !important;
 }
+/* 表头容器 */
 .layui-table-view .layui-table-box,
-.layui-table-view .layui-table-box {
-  background: transparent !important;
-}
-.layui-table-view .layui-table-header,
-.layui-table-view .layui-table-header,
-.layui-table-view .layui-table-header .layui-table {
+.layui-table-view .layui-table-box,
+.layui-table-header {
   background: transparent !important;
   border: none !important;
 }
+/* 表头行 */
+.layui-table-view .layui-table-header,
+.layui-table-view .layui-table-header .layui-table,
+.layui-table-view .layui-table-header tr {
+  background: transparent !important;
+  border: none !important;
+}
+/* 表头单元格 */
 .layui-table-view .layui-table-header th,
-.layui-table-view .layui-table-header .layui-table-cell,
-.layui-table-view .layui-table-header th.layui-none {
+.layui-table-view .layui-table-header th[data-field],
+.layui-table-view .layui-table-header .layui-table-cell {
   background: transparent !important;
   border: none !important;
-  border-bottom: 1px solid rgba(122,96,158,0.10) !important;
+  border-bottom: 2px solid rgba(122,96,158,0.12) !important;
   font-size: 11px !important;
   font-weight: 600 !important;
   letter-spacing: 0.14em !important;
   color: var(--ink-3) !important;
   text-transform: uppercase !important;
   padding: 0 16px !important;
-  height: 40px !important;
-  line-height: 40px !important;
+  height: 42px !important;
+  line-height: 42px !important;
 }
-.layui-table-view .layui-table-header style {
-  display: none !important;
-}
-.layui-table-view .layui-table-body,
-.layui-table-view .layui-table-body .layui-table {
+/* 覆盖 layui 注入的内联 style 标签效果 */
+.layui-table-view .layui-table-header style + .layui-table,
+.layui-table-view .layui-table-header .layui-table-cell {
   background: transparent !important;
 }
-.layui-table-view .layui-table-body tr {
+/* 表体 */
+.layui-table-view .layui-table-body,
+.layui-table-view .layui-table-body .layui-table,
+.layui-table-view .layui-table-main {
+  background: transparent !important;
+}
+/* 表体行 */
+.layui-table-view .layui-table-body tr,
+.layui-table-view .layui-table-body .layui-table tr {
   transition: background 0.2s var(--ease) !important;
   height: 44px !important;
 }
 .layui-table-view .layui-table-body tr:hover,
-.layui-table-view .layui-table-body tr.layui-table-hover {
+.layui-table-view .layui-table-body tr.layui-table-hover,
+.layui-table-view .layui-table-body .layui-table tr:hover {
   background: rgba(203,180,236,0.06) !important;
 }
+/* 表体单元格 */
 .layui-table-view .layui-table td,
 .layui-table-view .layui-table th,
-.layui-table-view .layui-table td.layui-table-cell {
+.layui-table-view .layui-table td.layui-table-cell,
+.layui-table-view .layui-table-body .layui-table-cell {
   border: none !important;
   border-bottom: 1px solid rgba(122,96,158,0.06) !important;
   padding: 0 16px !important;
@@ -363,31 +381,34 @@ button.stop-btn:active { transform: scale(0.96); }
   font-variant-numeric: tabular-nums !important;
   line-height: 44px !important;
   height: auto !important;
+  max-height: none !important;
 }
 .layui-table-view .layui-table tbody tr:last-child td {
   border-bottom: none !important;
 }
-.layui-table-view .layui-table-page {
-  display: none !important;
-}
+/* 隐藏 layui 自带分页和空状态 */
+.layui-table-view .layui-table-page,
 .layui-table-view .layui-none,
 .layui-table-view .layui-table-main .layui-none {
   display: none !important;
 }
-/* 去掉 layui 表格的固定行高限制 */
-.layui-table-view .layui-table-body .layui-table-cell {
-  height: auto !important;
-  line-height: 44px !important;
-}
-.layui-table-view .layui-fixed {
-  background: transparent !important;
-}
-.layui-table-view .layui-fixed .layui-table {
+/* 固定列透明化 */
+.layui-table-view .layui-fixed,
+.layui-table-view .layui-fixed .layui-table,
+.layui-table-view .layui-fixed .layui-table-header,
+.layui-table-view .layui-fixed .layui-table-body {
   background: transparent !important;
 }
 .layui-table-view .layui-fixed .layui-table-header th {
   background: transparent !important;
-  border-bottom: 1px solid rgba(122,96,158,0.10) !important;
+  border-bottom: 2px solid rgba(122,96,158,0.12) !important;
+}
+/* 强制清除 layui 注入的内联样式 */
+div[lay-id] .layui-table-view[lay-skin="line"],
+div[lay-id] .layui-table-view[lay-skin="row"],
+div[lay-id] .layui-table-view[lay-skin="nob"] {
+  background: transparent !important;
+  border: none !important;
 }
 /* ---- 进度条：全覆盖 layui 默认 ---- */
 .layui-progress,
