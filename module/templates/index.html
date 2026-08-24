@@ -9,7 +9,9 @@
   <link href="static/css/index.css" rel="stylesheet">
   <style>
     body { padding: 32px 24px 120px; }
-    /* ── 标签导航 ── */
+    /* ── 标签页切换 ── */
+    .tg-glass > section { display:none; }
+    .tg-glass > section.on { display:block; }
     .nav { display:flex; gap:6px; margin-bottom:28px; border-bottom:1px solid var(--hairline); padding-bottom:12px; }
     .nav-btn {
       padding:9px 22px; border:none; border-radius:999px; cursor:pointer;
@@ -18,8 +20,6 @@
     }
     .nav-btn:hover { color:var(--ink); background:rgba(255,255,255,.4); }
     .nav-btn.on { color:#fff; background:var(--grad); box-shadow:0 4px 14px rgba(178,138,222,.22); }
-    .panes > section { display:none; }
-    .panes > section.on { display:block; }
     /* ── 通用表单 ── */
     .f-section { margin-bottom:28px; }
     .f-label { display:block; font-size:11px; font-weight:600; letter-spacing:.1em; color:var(--ink-3); text-transform:uppercase; margin-bottom:12px; }
@@ -211,7 +211,7 @@ function toast(m){var t=document.getElementById('toast');t.textContent=m;t.class
 
 /* ── 标签页切换 ── */
 function showTab(key,btn){
-  document.querySelectorAll('.panes section, .tg-glass > section').forEach(function(s){s.classList.remove('on')});
+  document.querySelectorAll('.tg-glass > section').forEach(function(s){s.classList.remove('on')});
   document.getElementById('p-'+key).classList.add('on');
   document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('on')});
   btn.classList.add('on');
@@ -299,7 +299,9 @@ function dlToggle(el){
 
 /* ── 配置 ── */
 function loadCfg(){
+  try{
   var x=new XMLHttpRequest();x.open('GET','get_config',false);x.send();
+  if(x.status!==200){toast('配置加载失败: HTTP '+x.status);return;}
   var c=JSON.parse(x.responseText);
   document.getElementById('c-apid').value=c.api_id||'';
   document.getElementById('c-apih').value=c.api_hash_set?c.api_hash:'';
@@ -318,6 +320,7 @@ function loadCfg(){
   document.getElementById('c-ws').value=c.web_login_secret||'';
   var cl=document.getElementById('c-chats');cl.innerHTML='';
   (c.chat||[]).forEach(function(ch){addChat(ch);});
+  }catch(e){toast('配置加载失败: '+e.message);}
 }
 function addChat(ch){
   ch=ch||{};
@@ -328,6 +331,7 @@ function addChat(ch){
   document.getElementById('c-chats').appendChild(d);
 }
 function saveCfg(){
+  try{
   var media=[];
   document.querySelectorAll('#c-media input:checked').forEach(function(cb){media.push(cb.value);});
   var chats=[];
@@ -357,6 +361,7 @@ function saveCfg(){
   x.send(JSON.stringify(p));
   var r=JSON.parse(x.responseText);
   toast(r.msg||'已保存');
+  }catch(e){toast('保存失败: '+e.message);}
 }
 loadCfg();
 
