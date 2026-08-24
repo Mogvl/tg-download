@@ -95,6 +95,8 @@
 <div id="toast"></div>
 
 <div class="tg-glass" style="max-width:1060px; margin:0 auto;">
+  <!-- 实时速度（左上角） -->
+  <div class="dl-speed-top" id="download_speed_title">0.00 B/s</div>
   <!-- 导航 -->
   <div class="nav">
     <button class="nav-btn on" onclick="showTab('config',this)">配置</button>
@@ -251,7 +253,6 @@
 <!-- 底部状态条 -->
 <div class="layui-footer" id="footer-bar">
   <span>版本 <b id="app_version" style="color:var(--mist-violet)">—</b></span>
-  <span id="download_speed_title" style="font-variant-numeric:tabular-nums">0.00 B/s</span>
 </div>
 
 <script src="static/layui/layui.js"></script>
