@@ -604,6 +604,11 @@ async def download_chat_task(
 
 async def download_all_chat(client: pyrogram.Client):
     """Download All chat"""
+    chat_count = len(app.chat_download_config)
+    if chat_count == 0:
+        logger.warning("未配置任何下载目标（chat），请在 Web 界面「配置」页添加频道/群组后保存并重启")
+    else:
+        logger.info(f"开始下载 {chat_count} 个频道/群组")
     for key, value in app.chat_download_config.items():
         value.node = TaskNode(chat_id=key)
         try:
@@ -622,7 +627,8 @@ async def run_until_all_task_finish():
             if not value.need_check or value.total_task != value.finish_task:
                 finish = False
 
-        if (not app.bot_token and finish) or app.restart_program:
+        # 有配置的频道时保持运行等待下载；无频道且无bot时才退出
+        if (not app.bot_token and finish and not app.chat_download_config) or app.restart_program:
             break
 
         await asyncio.sleep(1)
