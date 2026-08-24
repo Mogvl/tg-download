@@ -896,6 +896,9 @@ class Application:
         self.config["replace_advertisement_list"] = self.replace_advertisement_list
         self.config["group_add_advertisement"] = self.group_add_advertisement
 
+        # 重启标记：读取后立即清除，避免无限重启循环
+        self.config["restart_program"] = False
+
         if immediate:
             with open(self.config_file, "w", encoding="utf-8") as yaml_file:
                 _yaml.dump(self.config, yaml_file)
