@@ -619,13 +619,23 @@ async def download_all_chat(client: pyrogram.Client):
             value.need_check = True
 
 
+_all_downloads_done = False
+
+
 async def run_until_all_task_finish():
     """Normal download"""
+    global _all_downloads_done
     while True:
         finish: bool = True
         for _, value in app.chat_download_config.items():
             if not value.need_check or value.total_task != value.finish_task:
                 finish = False
+
+        # 所有频道下载完成
+        if finish and app.chat_download_config and not _all_downloads_done:
+            _all_downloads_done = True
+            total = sum(v.total_task for v in app.chat_download_config.values())
+            logger.success(f"所有下载任务已完成，共 {total} 条消息")
 
         # 有配置的频道时保持运行等待下载；无频道且无bot时才退出
         if (not app.bot_token and finish and not app.chat_download_config) or app.restart_program:

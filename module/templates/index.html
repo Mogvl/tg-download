@@ -162,6 +162,7 @@
         <div class="dl-title">
           <span class="dl-icon">↓</span>
           <span>实时下载</span>
+          <span class="dl-badge" id="dl-done-badge" style="display:none">✓ 全部完成</span>
         </div>
         <button class="stop-btn" id="download_state" data-value="{{ download_state }}"
           onclick="dlToggle(this)">{{ {'pause':'暂停','continue':'继续'}[download_state] }}</button>
@@ -323,6 +324,13 @@ layui.use(['table','element'],function(){
       }});
     $.ajax({url:'get_download_status',type:'get',dataType:'json',
       success:function(r){document.getElementById('download_speed_title').textContent=r.download_speed;}});
+    // 检查下载完成状态
+    $.ajax({url:'get_completion_status',type:'get',dataType:'json',
+      success:function(r){
+        var badge=document.getElementById('dl-done-badge');
+        if(r.done&&r.total>0){badge.style.display='inline-flex';badge.textContent='✓ 全部完成 ('+r.total+'条)';}
+        else{badge.style.display='none';}
+      }});
   },1200);
 
   setInterval(function(){

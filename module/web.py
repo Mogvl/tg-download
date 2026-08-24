@@ -190,6 +190,22 @@ def get_app_version():
     return utils.__version__
 
 
+@_flask_app.route("/get_completion_status")
+@login_required
+def web_get_completion_status():
+    """返回下载完成状态"""
+    from media_downloader import _all_downloads_done, app as _app
+    chat_count = len(_app.chat_download_config)
+    total = sum(v.total_task for v in _app.chat_download_config.values())
+    finished = sum(v.finish_task for v in _app.chat_download_config.values())
+    return jsonify({
+        "done": _all_downloads_done and chat_count > 0,
+        "total": total,
+        "finished": finished,
+        "chat_count": chat_count,
+    })
+
+
 @_flask_app.route("/get_download_list")
 @login_required
 def get_download_list():
