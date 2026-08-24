@@ -18,11 +18,11 @@
   <div class="layui-tab" lay-filter="telegram_media_downloader">
     <div class="header-title layui-tab-brief">
       <ul class="layui-tab-title">
-        <li class="layui-this">Downloading</li>
-        <li>Downloaded</li>
+        <li class="layui-this">下载中</li>
+        <li>已下载</li>
         <!-- <li>Config</li> -->
       </ul>
-      <div class="stop-btn" id="download_state" data-value="{{ download_state }}" onclick="download_state_change(this)"> {{ download_state }} </div>
+      <div class="stop-btn" id="download_state" data-value="{{ download_state }}" onclick="download_state_change(this)"> {{ {'pause': '暂停', 'continue': '继续'}[download_state] }} </div>
     </div>
     <div class="layui-tab-content" style="padding: 0;">
       <div class="layui-tab-item layui-show">
@@ -42,7 +42,7 @@
   <div class="layui-footer">
     <div class="layui-row layui-col-space1">
       <div class="layui-col-md2">
-        <p>Telegram Media Downloader V <b id="app_version" style="color: #009688;">undefined</b>
+        <p>Telegram Media Downloader 版本 <b id="app_version" style="color: #009688;">undefined</b>
       </div>
       <div class="layui-col-md7">
       </div>
@@ -90,7 +90,7 @@
         , async: false
         , dataType: "text"
         , success: function (result) {
-          $("#download_state").html(result)
+          $("#download_state").html(result === 'pause' ? '暂停' : '继续')
           e.dataset.value=result
         }
       });
@@ -103,12 +103,12 @@
         , height: 'full-160'
         , limit: 10000
         , cols: [[
-          { field: 'chat', title: 'chat', width: 100 },
-          { field: 'id', title: 'id', width: 100 }
-          , { field: 'filename', title: 'file name', align: 'center' }
-          , { field: 'total_size', title: 'total byte', align: 'center' }
+          { field: 'chat', title: '会话', width: 100 },
+          { field: 'id', title: 'ID', width: 100 }
+          , { field: 'filename', title: '文件名', align: 'center' }
+          , { field: 'total_size', title: '总大小', align: 'center' }
           , {
-            field: 'download_progress', title: 'download progress', align: 'center', templet: function (d) {
+            field: 'download_progress', title: '进度', align: 'center', templet: function (d) {
               var ys = '';
               if (30 < d.download_progress && d.download_progress < 100) {
                 ys = 'layui-bg-blue'
@@ -121,7 +121,7 @@
               return '<div class="layui-progress layui-progress-big" lay-showpercent="true"  lay-filter="down-' + d.id + '"><div class="layui-progress-bar ' + ys + '" lay-percent="' + d.download_progress + '%"></div></div>'
             }
           }
-          , { field: 'download_speed', title: 'download speed', align: 'center' }
+          , { field: 'download_speed', title: '速度', align: 'center' }
         ]]
         , done: function (res, currentCount) {
           element.render()
@@ -136,10 +136,10 @@
         , limit: 10000
         , cols: [[
 
-          { field: 'id', title: 'id', width: 100 }
-          , { field: 'filename', title: 'file name', align: 'center' }
-          , { field: 'total_size', title: 'total size', align: 'center' }
-          , { field: 'save_path', title: 'save path', align: 'center' }
+          { field: 'id', title: 'ID', width: 100 }
+          , { field: 'filename', title: '文件名', align: 'center' }
+          , { field: 'total_size', title: '总大小', align: 'center' }
+          , { field: 'save_path', title: '保存路径', align: 'center' }
         ]], done: function (res, currentCount) {
           element.render()
         }
