@@ -621,22 +621,14 @@ async def download_all_chat(client: pyrogram.Client):
 
 async def run_until_all_task_finish():
     """Normal download"""
-    # 调试：打印加载到的频道数
-    _chat_ids = list(app.chat_download_config.keys())
-    logger.info(f"[debug] chat_download_config: {len(_chat_ids)} 个频道, keys={_chat_ids}, bot_token={'有' if app.bot_token else '无'}")
-
     while True:
         finish: bool = True
-        for key, value in app.chat_download_config.items():
+        for _, value in app.chat_download_config.items():
             if not value.need_check or value.total_task != value.finish_task:
                 finish = False
-            else:
-                logger.info(f"[debug] 频道{key}: need_check={value.need_check}, total={value.total_task}, finish={value.finish_task}")
 
         # 有配置的频道时保持运行等待下载；无频道且无bot时才退出
-        _should_exit = (not app.bot_token and finish and not app.chat_download_config) or app.restart_program
-        logger.info(f"[debug] finish={finish}, chat_config_empty={not app.chat_download_config}, restart={app.restart_program}, should_exit={_should_exit}")
-        if _should_exit:
+        if (not app.bot_token and finish and not app.chat_download_config) or app.restart_program:
             break
 
         await asyncio.sleep(1)
