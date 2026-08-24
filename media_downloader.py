@@ -676,6 +676,20 @@ async def stop_server(client: pyrogram.Client):
 
 def main():
     """Main function of the downloader."""
+    import signal
+
+    def _sigterm_handler(signum, frame):
+        """收到 SIGTERM 时先保存配置再退出"""
+        logger.info("收到终止信号，正在保存配置...")
+        try:
+            app.update_config()
+            logger.success("配置已保存")
+        except Exception as e:
+            logger.error(f"保存配置失败: {e}")
+        os._exit(0)
+
+    signal.signal(signal.SIGTERM, _sigterm_handler)
+
     tasks = []
     client = HookClient(
         "media_downloader",
