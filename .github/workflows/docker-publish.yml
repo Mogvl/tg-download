@@ -42,3 +42,11 @@ jobs:
             ${{ env.IMAGE }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # 失败时把错误摘要写进 check 注解（匿名可读，无需 admin 权限拉日志）
+      - name: Surface build error as annotation
+        if: failure()
+        run: |
+          ERR=$(docker buildx build --platform linux/amd64 --progress=plain . 2>&1 \
+            | grep -Ei "ERROR|denied|not found" | tail -n 3 | tr '\n' ' ' | head -c 700)
+          echo "::error title=Docker build error::${ERR:-see-run-logs}"
