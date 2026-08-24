@@ -224,11 +224,21 @@
   <!-- ═══════ 4. 历史 ═══════ -->
   <section id="p-history">
     <div class="hs">
-      <input id="h-q" placeholder="搜索文件名…" onkeydown="if(event.key==='Enter')hLoad()">
+      <input id="h-q" placeholder="搜索文件名或频道…" onkeydown="if(event.key==='Enter')hLoad()">
+      <select id="h-type" onchange="hLoad()" style="height:38px;padding:0 10px;border:1px solid var(--hairline);border-radius:10px;background:rgba(255,255,255,.55);font-size:12.5px;color:var(--ink);outline:none;">
+        <option value="All">全部类型</option>
+        <option value="photo">照片</option>
+        <option value="video">视频</option>
+        <option value="audio">音频</option>
+        <option value="document">文档</option>
+        <option value="voice">语音</option>
+        <option value="animation">动图</option>
+      </select>
       <button onclick="hLoad()">搜索</button>
+      <button onclick="hClear()" style="background:none;border:1px solid var(--hairline);color:var(--ink-3);font-size:12px">清空</button>
     </div>
     <table class="ht"><thead><tr>
-      <th style="width:44%">文件名</th><th style="width:14%">大小</th><th style="width:20%">时间</th><th style="width:22%">路径</th>
+      <th style="width:12%">频道</th><th style="width:32%">文件名</th><th style="width:10%">大小</th><th style="width:10%">类型</th><th style="width:18%">时间</th><th style="width:18%">路径</th>
     </tr></thead><tbody id="h-body"></tbody></table>
     <div class="hp">
       <button id="h-prev" onclick="hPage(-1)">‹</button>
@@ -495,20 +505,26 @@ function logAutoToggle(){
 /* ── 历史 ── */
 function hLoad(){
   var q=encodeURIComponent(document.getElementById('h-q').value||'');
-  var x=new XMLHttpRequest();x.open('GET','get_history?page='+_hPg+'&per_page=30&search='+q,false);x.send();
+  var t=document.getElementById('h-type').value;
+  var x=new XMLHttpRequest();x.open('GET','get_history?page='+_hPg+'&per_page=30&search='+q+'&media_type='+t,false);x.send();
   var d=JSON.parse(x.responseText);
   _hT=d.total;
   var pg=Math.max(1,Math.ceil(d.total/30));
-  document.getElementById('h-info').textContent=_hPg+' / '+pg+'  ·  '+d.total+' 个文件';
+  document.getElementById('h-info').textContent=_hPg+' / '+pg+'  ·  '+d.total+' 条';
   document.getElementById('h-prev').disabled=_hPg<=1;
   document.getElementById('h-next').disabled=_hPg>=pg;
   var tb=document.getElementById('h-body');tb.innerHTML='';
-  if(!d.files.length){tb.innerHTML='<tr><td colspan="4" class="empty">暂无文件</td></tr>';return;}
+  if(!d.files.length){tb.innerHTML='<tr><td colspan="6" class="empty">暂无文件</td></tr>';return;}
   d.files.forEach(function(f){
-    tb.innerHTML+='<tr><td>'+f.name+'</td><td>'+f.size_str+'</td><td>'+f.mtime_str+'</td><td style="color:var(--ink-3);font-size:12px">'+f.path+'</td></tr>';
+    tb.innerHTML+='<tr><td style="color:var(--ink-3);font-size:12px">'+f.chat_id+'</td><td>'+f.name+'</td><td>'+f.size_str+'</td><td style="color:var(--ink-3);font-size:12px">'+(f.media_type||'-')+'</td><td style="color:var(--ink-3)">'+f.mtime_str+'</td><td style="color:var(--ink-3);font-size:12px">'+f.path+'</td></tr>';
   });
 }
 function hPage(d){_hPg=Math.max(1,_hPg+d);hLoad();}
+function hClear(){
+  if(!confirm('确定清空所有下载历史？'))return;
+  var x=new XMLHttpRequest();x.open('POST','clear_history',false);x.send();
+  hLoad();toast('历史已清空');
+}
 </script>
 </body>
 </html>

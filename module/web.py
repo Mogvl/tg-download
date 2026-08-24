@@ -386,46 +386,40 @@ def web_get_logs():
 @_flask_app.route("/get_history")
 @login_required
 def web_get_history():
-    """扫描 downloads/ 目录，返回文件列表（按修改时间倒序）"""
+    """从数据库查询下载历史（支持搜索/筛选/排序/分页）"""
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 30))
-    search = request.args.get("search", "").strip().lower()
+    search = request.args.get("search", "").strip()
+    media_type = request.args.get("media_type", "All")
+    sort_by = request.args.get("sort_by", "download_timestamp")
+    sort_desc = request.args.get("sort_desc", "true") == "true"
 
-    if not _app:
-        return jsonify({"files": [], "total": 0})
+    import utils.db as db_mod
+    records, total = db_mod.get_history(
+        page=page, per_page=per_page, search=search,
+        media_type=media_type, sort_by=sort_by, sort_desc=sort_desc,
+    )
 
-    base = _app.save_path
-    if not os.path.isdir(base):
-        return jsonify({"files": [], "total": 0})
-
-    # 收集所有文件（排除 .session 等临时文件）
     files = []
-    for fpath in glob.glob(os.path.join(base, "**", "*"), recursive=True):
-        if not os.path.isfile(fpath):
-            continue
-        name = os.path.basename(fpath)
-        if name.startswith(".") or name.endswith(".session"):
-            continue
-        if search and search not in name.lower():
-            continue
-        stat = os.stat(fpath)
-        rel = os.path.relpath(fpath, base)
+    for r in records:
         files.append({
-            "name": name,
-            "path": rel,
-            "size": stat.st_size,
-            "mtime": stat.st_mtime,
+            "name": r["file_name"],
+            "path": r.get("file_path", ""),
+            "size": r["file_size"],
+            "size_str": format_byte(r["file_size"]),
+            "mtime": r["download_timestamp"],
+            "mtime_str": time.strftime("%Y-%m-%d %H:%M", time.localtime(r["download_timestamp"])),
+            "chat_id": r.get("chat_id", ""),
+            "media_type": r.get("media_type", ""),
         })
 
-    # 按修改时间倒序
-    files.sort(key=lambda x: x["mtime"], reverse=True)
-    total = len(files)
-    start = (page - 1) * per_page
-    page_files = files[start : start + per_page]
+    return jsonify({"files": files, "total": total})
 
-    # 格式化
-    for f in page_files:
-        f["size_str"] = format_byte(f["size"])
-        f["mtime_str"] = time.strftime("%Y-%m-%d %H:%M", time.localtime(f["mtime"]))
 
-    return jsonify({"files": page_files, "total": total})
+@_flask_app.route("/clear_history", methods=["POST"])
+@login_required
+def web_clear_history():
+    """清空下载历史"""
+    import utils.db as db_mod
+    db_mod.clear_history()
+    return jsonify({"ok": True})

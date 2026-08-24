@@ -34,6 +34,7 @@ from utils.meta import print_meta
 from utils.meta_data import MetaData
 # 保留导入以兼容测试(mock.patch 目标)，实际不调用更新检查
 from utils.updates import check_for_updates  # noqa: F401  pylint: disable=unused-import
+import utils.db as db
 
 logging.basicConfig(
     level=logging.INFO,
@@ -457,7 +458,15 @@ async def download_media(
                 _check_download_finish(media_size, temp_download_path, ui_file_name)
                 await asyncio.sleep(0.5)
                 _move_to_download_path(temp_download_path, file_name)
-                # TODO: if not exist file size or media
+                # 记录到数据库
+                db.record_download(
+                    chat_id=node.chat_id,
+                    message_id=message_id,
+                    file_name=ui_file_name,
+                    file_size=media_size,
+                    file_path=file_name,
+                    media_type=_type if _type else "",
+                )
                 return DownloadStatus.SuccessDownload, file_name
         except pyrogram.errors.exceptions.bad_request_400.BadRequest:
             logger.warning(
@@ -508,6 +517,7 @@ def _check_config() -> bool:
     print_meta(logger)
     try:
         _load_config()
+        db.init_db()
         logger.add(
             os.path.join(app.log_file_path, "tdl.log"),
             rotation="10 MB",
