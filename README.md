@@ -2,6 +2,7 @@
 
 <p align="center">
 基于 <a href="https://github.com/tangyoha/telegram_media_downloader">telegram_media_downloader</a> 的绿联 NAS Docker 一键部署版本
+（镜像：<code>ghcr.io/mogvl/tg-download:latest</code>，push 自动构建）
 </p>
 
 <p align="center">

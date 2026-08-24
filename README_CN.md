@@ -79,7 +79,7 @@ pip3 install -r requirements.txt
 ## 绿联 NAS (UGREEN) 一键部署
 
 本仓库提供 `docker-compose.yml`，可在绿联 Docker「项目 / Compose」中一键部署。
-镜像使用上游官方镜像 [tangyoha/telegram_media_downloader](https://hub.docker.com/r/tangyoha/telegram_media_downloader)。
+镜像为本项目自动构建的 `ghcr.io/mogvl/tg-download:latest`（push 到 main 后由 GitHub Actions 自动构建发布）。
 
 ### 部署前准备（必做）
 
@@ -100,7 +100,7 @@ mkdir -p downloads sessions log temp
 ### 一键部署步骤
 
 1. 在绿联 Docker 中选择 **项目 / Compose → 创建项目**，导入仓库中的 `docker-compose.yml`。
-2. 点击 **部署 / 启动**，容器会自动拉取官方镜像。
+2. 点击 **部署 / 启动**，容器会自动拉取 `ghcr.io/mogvl/tg-download:latest` 镜像。
 3. 首次登录 Telegram 账号：SSH 进入项目目录执行
 
    ```sh
@@ -135,26 +135,25 @@ docker compose up -d
 
 确保安装了 **docker** 和 **docker-compose**
 ```sh
-docker pull tangyoha/telegram_media_downloader:latest
+docker pull ghcr.io/mogvl/tg-download:latest
 mkdir -p ~/app && mkdir -p ~/app/log/ && cd ~/app
-wget https://raw.githubusercontent.com/tangyoha/telegram_media_downloader/blob/master/docker-compose.yaml -O docker-compose.yaml
-wget https://raw.githubusercontent.com/tangyoha/telegram_media_downloader/blob/master/config.yaml -O config.yaml
-wget https://raw.githubusercontent.com/tangyoha/telegram_media_downloader/blob/master/data.yaml -O data.yaml
-# vi config.yaml and docker-compose.yaml
-vi config.yaml
+wget https://raw.githubusercontent.com/Mogvl/tg-download/main/docker-compose.yml -O docker-compose.yml
+wget https://raw.githubusercontent.com/Mogvl/tg-download/main/config.example.yaml -O config.yaml
+wget https://raw.githubusercontent.com/Mogvl/tg-download/main/data.example.yaml -O data.yaml
+# vi config.yaml 填入 api_id / api_hash / chat
 
 # 第一次需要前台启动
-# 输入你的电话号码和密码，然后退出(ctrl + c)
-docker-compose run --rm telegram_media_downloader
+# 输入你的电话号码和验证码，然后退出(ctrl + c)
+docker compose run --rm tg-download
 
 # 执行完以上操作后，后面的所有启动都在后台启动
-docker-compose up -d
+docker compose up -d
 
 ＃ 升级
-docker pull tangyoha/telegram_media_downloader:latest
+docker pull ghcr.io/mogvl/tg-download:latest
 cd ~/app
-docker-compose down
-docker-compose up -d
+docker compose down
+docker compose up -d
 ```
 
 ## 升级安装

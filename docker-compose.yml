@@ -2,9 +2,9 @@ version: "3.8"
 
 services:
   tg-download:
-    # 使用上游官方镜像（推荐，与 README 文档一致）
-    image: tangyoha/telegram_media_downloader:latest
-    # 如需基于本仓库源码自行构建，注释掉上面的 image 行，并取消下面 build 行的注释：
+    # 本项目自动构建的镜像（push 到 main 后由 GitHub Actions 发布）
+    image: ghcr.io/mogvl/tg-download:latest
+    # 如需基于源码本地构建，注释掉上面的 image 行，并取消下面 build 行的注释：
     # build: .
     container_name: tg-download
     ports:
