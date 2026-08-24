@@ -44,11 +44,16 @@ git clone https://github.com/Mogvl/tg-download.git .
 
 或者手动创建以下文件：
 
-- `docker-compose.yml`
-- `config.yaml`
-- `data.yaml`
+- `docker-compose.yml`（仓库自带）
+- `config.yaml`（由 `config.example.yaml` 复制而来）
+- `data.yaml`（由 `data.example.yaml` 复制而来）
 
 #### 4. 修改配置文件
+
+```bash
+cp config.example.yaml config.yaml
+cp data.example.yaml data.yaml
+```
 
 编辑 `config.yaml`，填入你的 Telegram API 信息：
 
@@ -94,13 +99,18 @@ docker compose up -d
 
 | 文件 | 说明 |
 |------|------|
-| `docker-compose.yaml` | Docker Compose 配置 |
-| `config.yaml` | 应用配置文件 |
-| `data.yaml` | 数据文件 |
+| `docker-compose.yml` | Docker Compose 配置 |
+| `config.example.yaml` | 配置模板（复制为 `config.yaml` 后填写） |
+| `data.example.yaml` | 数据文件模板（复制为 `data.yaml`） |
 
-#### 2. 修改 `config.yaml`
+#### 2. 准备配置文件
 
-填入你的 Telegram API 信息（获取方式见下方）。
+```bash
+cp config.example.yaml config.yaml
+cp data.example.yaml data.yaml
+```
+
+然后编辑 `config.yaml`，填入你的 Telegram API 信息（获取方式见下方）。
 
 #### 3. 在绿联 Docker 中导入
 
@@ -109,9 +119,17 @@ docker compose up -d
 3. 选择你的项目目录
 4. 点击部署
 
-#### 4. 首次登录
+#### 4. 首次登录 Telegram
 
-容器启动后，访问 `http://NAS IP:13087`，按提示登录 Telegram 账号。
+在绿联 SSH 终端进入项目目录，前台启动一次完成账号登录：
+
+```bash
+docker compose run --rm tg-download
+```
+
+按提示输入手机号和验证码，登录成功后 `Ctrl+C` 退出（会话保存在 `sessions/`），再执行 `docker compose up -d` 后台运行。
+
+> Web UI 仅用于查看下载进度与暂停/继续，不支持在网页里配置 api_id 或登录 Telegram。
 
 ---
 
@@ -141,14 +159,16 @@ docker compose up -d
 
 ```
 tg-download/
-├── docker-compose.yaml    # Docker Compose 配置
-├── config.yaml            # 应用配置
-├── data.yaml              # 数据文件
-├── downloads/             # 下载文件存储
-├── log/                   # 日志文件
-├── sessions/              # Telegram 会话文件
-├── temp/                  # 临时文件
-└── rclone/                # Rclone 配置
+├── docker-compose.yml      # Docker Compose 配置
+├── config.example.yaml     # 配置模板
+├── data.example.yaml       # 数据文件模板
+├── config.yaml             # 应用配置（自行复制创建）
+├── data.yaml               # 数据文件（自行复制创建）
+├── downloads/              # 下载文件存储
+├── log/                    # 日志文件
+├── sessions/               # Telegram 会话文件
+├── temp/                   # 临时文件
+└── rclone/                 # Rclone 配置（可选）
 ```
 
 ---

@@ -21,6 +21,7 @@ media_downloader.spec
 mypy.ini
 pylintrc
 docker-compose.yaml
+docker-compose.yml
 Dockerfile
 .pre-commit-config.yaml
 codecov.yml

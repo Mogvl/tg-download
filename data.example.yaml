@@ -1,0 +1,4 @@
+# 应用数据文件（记录失败重试的消息 ID 等）
+# 使用方法：复制本文件为 data.yaml
+#   cp data.example.yaml data.yaml
+ids_to_retry: []

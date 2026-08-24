@@ -1,0 +1,92 @@
+# ============================================================
+# Telegram Media Downloader 配置文件模板
+# 使用方法：复制本文件为 config.yaml，并至少填写 api_id / api_hash / chat
+#   cp config.example.yaml config.yaml
+# 完整配置说明见项目 README.md
+# ============================================================
+
+# ---- 必填：Telegram API 凭证（https://my.telegram.org/apps 获取）----
+api_id: your_api_id        # 例如 1234567
+api_hash: your_api_hash    # 例如 0123456789abcdef0123456789abcdef
+
+# 可选：Bot Token（用于机器人交互下载；不用机器人则留空）
+bot_token: ""
+
+# ---- 必填：要下载的聊天/频道列表 ----
+chat:
+  - chat_id: me            # 收藏夹填 me；频道/群组填数字 ID 或 @用户名
+    last_read_message_id: 0
+  # - chat_id: -1001234567890          # 超级群组/频道 ID（前面加 -100）
+  #   last_read_message_id: 0
+  #   download_filter: message_date >= 2024-01-01 00:00:00 and message_date <= 2025-01-01 00:00:00
+
+# 要下载的媒体类型
+media_types:
+  - audio
+  - document
+  - photo
+  - video
+  - voice
+  - animation              # GIF
+
+# 各类型要下载的文件格式（all 表示全部）
+file_formats:
+  audio:
+    - all
+  document:
+    - all
+  video:
+    - all
+
+# ---- 存储路径（Docker 内固定为 /app 开头，配合 compose 挂载）----
+save_path: /app/downloads
+
+# 子目录结构，可组合：chat_title / media_datetime / media_type
+file_path_prefix:
+  - chat_title
+  - media_datetime
+
+# 文件命名前缀，可组合：message_id / file_name / caption
+file_name_prefix:
+  - message_id
+  - file_name
+file_name_prefix_split: " - "
+
+# ---- Web 管理界面 ----
+web_host: 0.0.0.0         # Docker 部署必须为 0.0.0.0
+web_port: 5000            # 对外端口由 docker-compose.yml 的端口映射决定（默认 13087）
+# 强烈建议设置登录密码；不设置则 Web UI 无需登录即可访问
+web_login_secret: ""
+hide_file_name: false
+
+language: ZH               # 界面语言：EN / ZH / RU / UA
+
+# 最大并发下载任务数
+max_download_task: 5
+
+# 日期目录格式
+date_format: "%Y_%m"
+
+# 是否下载 txt 文件
+enable_download_txt: false
+
+# 允许使用机器人的用户 ID（不配置则仅允许当前登录账号）
+# allowed_user_ids:
+#   - 'username'
+
+# ---- 云盘上传（可选）----
+upload_drive:
+  enable_upload_file: false
+  # remote_dir: drive:/telegram
+  # upload_adapter: rclone       # rclone 或 aligo
+  # rclone_path: /app/rclone/rclone
+  # before_upload_file_zip: false
+  # after_upload_file_delete: false
+
+# ---- 代理（可选，按需取消注释）----
+# proxy:
+#   scheme: socks5             # socks4 / socks5 / http
+#   hostname: 192.168.1.1
+#   port: 7890
+#   username: ""               # 无认证则删除这两行
+#   password: ""

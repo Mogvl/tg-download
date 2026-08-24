@@ -79,37 +79,55 @@ pip3 install -r requirements.txt
 ## 绿联 NAS (UGREEN) 一键部署
 
 本仓库提供 `docker-compose.yml`，可在绿联 Docker「项目 / Compose」中一键部署。
+镜像使用上游官方镜像 [tangyoha/telegram_media_downloader](https://hub.docker.com/r/tangyoha/telegram_media_downloader)。
 
-### docker-compose.yml 内容
+### 部署前准备（必做）
 
-可直接复制以下内容保存为项目目录中的 `docker-compose.yml`：
+容器启动时会读取 `config.yaml`，**必须先准备好配置文件**，否则会启动失败：
 
-```yaml
-version: '3.8'
+1. 将项目下载到 NAS 的一个目录中（如 `/volume1/docker/tg-download/`）。
+2. 复制并填写配置：
 
-services:
-  tg-download:
-    image: ghcr.io/mogvl/tg-download:latest
-    container_name: tg-download
-    ports:
-      - "13087:5000"
-    environment:
-      - TZ=Asia/Shanghai
-    volumes:
-      - ./downloads:/app/downloads
-      - ./sessions:/app/sessions
-    restart: unless-stopped
+```sh
+cp config.example.yaml config.yaml   # 编辑并填入 api_id / api_hash / chat
+cp data.example.yaml data.yaml
+mkdir -p downloads sessions log temp
 ```
 
+> 获取 api_id/api_hash：访问 <https://my.telegram.org/apps> 注册应用。
+> 注意：`config.yaml`、`data.yaml` 必须以**文件**形式存在；如果缺失，Docker 挂载时会创建同名目录导致启动失败。
+
 ### 一键部署步骤
-1. 在绿联 Docker 中选择 **项目 / Compose → 创建项目**，导入上述 `docker-compose.yml`。
-2. 点击 **部署 / 启动**，容器会自动拉取 `ghcr.io/mogvl/tg-download:latest` 镜像。
-3. 浏览器访问 `http://<绿联 IP>:13087` 进入 Web 管理界面。
-4. 首次使用需在 Web 界面配置 Telegram API（api_id/api_hash），按提示完成登录。
+
+1. 在绿联 Docker 中选择 **项目 / Compose → 创建项目**，导入仓库中的 `docker-compose.yml`。
+2. 点击 **部署 / 启动**，容器会自动拉取官方镜像。
+3. 首次登录 Telegram 账号：SSH 进入项目目录执行
+
+   ```sh
+   docker compose run --rm tg-download
+   ```
+
+   按提示输入手机号和验证码，登录成功后 `Ctrl+C` 退出（会话已保存在 `sessions/`）。
+
+4. 后台启动：`docker compose up -d`
+5. 浏览器访问 `http://<绿联 IP>:13087` 查看/控制下载进度。
+   Web UI 仅用于查看下载进度与暂停/继续，不支持在网页里配置 api_id 或登录 Telegram；
+   建议在 `config.yaml` 中设置 `web_login_secret` 作为界面登录密码。
+
+### 更新
+
+```sh
+cd /volume1/docker/tg-download
+docker compose down
+git pull
+docker compose up -d
+```
 
 ### 数据说明
+
 - `downloads/`：下载的媒体文件（持久化）
 - `sessions/`：Telegram 登录会话（重启不丢失）
+- `config.yaml` / `data.yaml`：配置与应用数据
 
 ---
 ## Docker容器
