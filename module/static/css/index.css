@@ -126,110 +126,182 @@ body::after {
   background: var(--grad);
 }
 
-/* ---- 暂停/继续 幽灵胶囊按钮 ---- */
-.header-title .stop-btn {
-  padding: 9px 26px;
+/* ---- 下载卡片 ---- */
+.dl-card {
+  background: rgba(255,255,255,0.32);
+  border: 1px solid rgba(255,255,255,0.55);
+  border-radius: 18px;
+  padding: 24px 28px 20px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 2px 12px rgba(146,112,190,0.04);
+}
+.dl-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.dl-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+.dl-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--grad);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+.dl-icon-ok {
+  background: linear-gradient(135deg, #b4dcc3, #8ecda0);
+}
+
+/* 空状态 */
+.dl-empty {
+  display: none;
+  text-align: center;
+  padding: 40px 0 32px;
+  color: var(--ink-3);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+.dl-empty.show { display: block; }
+.dl-empty-icon {
+  font-size: 28px;
+  color: var(--mist-violet);
+  opacity: 0.45;
+  margin-bottom: 10px;
+}
+
+/* ---- 暂停/继续 按钮 ---- */
+.stop-btn {
+  padding: 8px 22px;
   border: 1px solid var(--hairline);
   border-radius: 999px;
-  font-size: 13px;
-  letter-spacing: 0.14em;
+  font-size: 12.5px;
+  letter-spacing: 0.12em;
   color: var(--ink-2);
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255,255,255,0.5);
   cursor: pointer;
   user-select: none;
-  transition: all 0.3s var(--ease);
+  transition: all 0.28s var(--ease);
 }
-.header-title .stop-btn:hover {
+.stop-btn:hover {
   border-color: transparent;
   background: var(--grad);
   color: #fff;
   transform: translateY(-1px);
-  box-shadow: 0 10px 26px rgba(178, 138, 222, 0.28);
+  box-shadow: 0 8px 22px rgba(178,138,222,0.24);
 }
-.header-title .stop-btn:active {
-  transform: scale(0.96);
-}
+.stop-btn:active { transform: scale(0.96); }
 
 /* ---- 表格：透明化 + 发丝分隔 + 宽松行距 ---- */
-.layui-tab-content .layui-table-view {
-  margin: 26px 0 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
+.layui-table-view {
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 .layui-table-view .layui-table-header {
-  background: transparent;
-  border: none;
+  background: transparent !important;
+  border: none !important;
 }
 .layui-table-view .layui-table-header th,
 .layui-table-view .layui-table-header .layui-table-cell {
-  background: transparent;
+  background: transparent !important;
   border: none !important;
-  font-size: 11.5px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   color: var(--ink-3);
+  text-transform: uppercase;
 }
 .layui-table-view .layui-table tbody tr {
   transition: background 0.2s var(--ease);
 }
 .layui-table-view .layui-table tbody tr:hover,
 .layui-table-hover {
-  background: rgba(203, 180, 236, 0.07);
+  background: rgba(203,180,236,0.06) !important;
 }
 .layui-table-view .layui-table td,
 .layui-table-view .layui-table th {
-  border: none;
-  border-bottom: 1px solid rgba(122, 96, 158, 0.07);
+  border: none !important;
+  border-bottom: 1px solid rgba(122,96,158,0.06) !important;
+}
+.layui-table-view .layui-table tbody tr:last-child td {
+  border-bottom: none !important;
 }
 .layui-table-cell {
-  padding: 0 18px;
-  line-height: inherit;
-  font-size: 13.5px;
+  padding: 0 16px !important;
+  line-height: inherit !important;
+  font-size: 13px;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
-.layui-table tbody tr:last-child td {
-  border-bottom: none;
-}
 .layui-none {
-  color: var(--ink-3);
-  letter-spacing: 0.2em;
-  padding: 72px 0 !important;
-  font-size: 12.5px;
+  display: none !important;
 }
 
-/* ---- 进度条：纤细珠光渐变 ---- */
+/* ---- 进度条：纤细 + 渐变 + 微光 ---- */
 .layui-progress,
 .layui-progress-big {
-  border-radius: 999px;
-  background: rgba(122, 96, 158, 0.08);
+  border-radius: 999px !important;
+  background: rgba(122,96,158,0.07) !important;
+  height: 7px !important;
+  overflow: hidden;
 }
 .layui-progress-bar,
 .layui-progress-big .layui-progress-bar {
-  border-radius: 999px;
+  border-radius: 999px !important;
+  position: relative;
 }
-.layui-progress-big .layui-progress-bar {
-  height: 8px;
-  top: 0;
-  margin-top: 0;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+.layui-progress-big .layui-progress-bar,
+.layui-table .layui-progress-bar {
+  height: 7px !important;
+  top: 0 !important;
+  margin-top: 0 !important;
+  transition: width 0.5s var(--ease);
 }
-.layui-bg-blue {
-  background: linear-gradient(90deg, #dccdf2, #c9b6ea) !important;
+/* 珠光高光条 */
+.layui-progress-bar::after,
+.layui-table .layui-progress-bar::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50%;
+  border-radius: 999px 999px 0 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.45), transparent);
+  pointer-events: none;
 }
-.layui-bg-red {
-  background: linear-gradient(90deg, #f4cede, #eab9d2) !important;
+.layui-bg-blue,
+.layui-table .layui-bg-blue {
+  background: linear-gradient(90deg, #d4c4ee, #c4a8e8) !important;
 }
-.layui-bg-green {
-  background: linear-gradient(90deg, #cde8d6, #b4dcc3) !important;
+.layui-bg-red,
+.layui-table .layui-bg-red {
+  background: linear-gradient(90deg, #f0c4d6, #e8a8c4) !important;
 }
-.layui-progress-big .layui-progress-text,
-.layui-progress-text {
-  color: var(--ink-2);
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
+.layui-bg-green,
+.layui-table .layui-bg-green {
+  background: linear-gradient(90deg, #b8dfc8, #96d4ae) !important;
+}
+.layui-progress-text,
+.layui-progress-big .layui-progress-text {
+  color: var(--ink-2) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.03em;
   font-variant-numeric: tabular-nums;
+  line-height: 7px !important;
+  top: 0 !important;
 }
 
 /* ---- 底部悬浮状态条 ---- */
