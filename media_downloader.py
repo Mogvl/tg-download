@@ -621,6 +621,10 @@ async def download_all_chat(client: pyrogram.Client):
 
 async def run_until_all_task_finish():
     """Normal download"""
+    # 调试：打印加载到的频道数
+    _chat_ids = list(app.chat_download_config.keys())
+    logger.info(f"[debug] chat_download_config: {len(_chat_ids)} 个频道, keys={_chat_ids}, bot_token={'有' if app.bot_token else '无'}")
+
     while True:
         finish: bool = True
         for _, value in app.chat_download_config.items():
