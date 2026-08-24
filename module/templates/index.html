@@ -162,8 +162,8 @@
           <span class="dl-icon">↓</span>
           <span>实时下载</span>
         </div>
-        <div class="stop-btn" id="download_state" data-value="{{ download_state }}"
-          onclick="dlToggle(this)">{{ {'pause':'暂停','continue':'继续'}[download_state] }}</div>
+        <button class="stop-btn" id="download_state" data-value="{{ download_state }}"
+          onclick="dlToggle(this)">{{ {'pause':'暂停','continue':'继续'}[download_state] }}</button>
       </div>
       <div id="dl-active-wrap">
         <table class="layui-hide" id="download_list" lay-filter="download_list"></table>
@@ -331,13 +331,25 @@ function loadAlreadyFromDisk(){
 }
 
 /* ── 暂停/继续 ── */
+var _dlBusy=false;
 function dlToggle(el){
+  if(_dlBusy)return; _dlBusy=true;
+  el.style.opacity='0.5'; el.style.pointerEvents='none';
   var x=new XMLHttpRequest();
-  x.open('POST','set_download_state?state='+el.dataset.value,false);
+  x.open('POST','set_download_state?state='+el.dataset.value);
+  x.onload=function(){
+    var r=x.responseText;
+    el.innerHTML=r==='pause'?'暂停':'继续';
+    el.dataset.value=r;
+    el.style.opacity=''; el.style.pointerEvents='';
+    _dlBusy=false;
+  };
+  x.onerror=function(){
+    el.style.opacity=''; el.style.pointerEvents='';
+    _dlBusy=false;
+    toast('操作失败，请重试');
+  };
   x.send();
-  var r=x.responseText;
-  el.innerHTML=r==='pause'?'暂停':'继续';
-  el.dataset.value=r;
 }
 
 /* ── 配置 ── */

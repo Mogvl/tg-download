@@ -183,7 +183,7 @@ body::after {
 }
 
 /* ---- 暂停/继续 按钮 ---- */
-.stop-btn {
+button.stop-btn {
   padding: 8px 22px;
   border: 1px solid var(--hairline);
   border-radius: 999px;
@@ -194,15 +194,18 @@ body::after {
   cursor: pointer;
   user-select: none;
   transition: all 0.28s var(--ease);
+  position: relative;
+  z-index: 2;
+  -webkit-tap-highlight-color: transparent;
 }
-.stop-btn:hover {
+button.stop-btn:hover {
   border-color: transparent;
   background: var(--grad);
   color: #fff;
   transform: translateY(-1px);
   box-shadow: 0 8px 22px rgba(178,138,222,0.24);
 }
-.stop-btn:active { transform: scale(0.96); }
+button.stop-btn:active { transform: scale(0.96); }
 
 /* ---- 表格：透明化 + 发丝分隔 + 宽松行距 ---- */
 .layui-table-view {
