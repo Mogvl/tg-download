@@ -149,7 +149,8 @@
     </div>
     <div class="bar">
       <button class="bh" onclick="loadCfg()">重新加载</button>
-      <button class="bg" onclick="saveCfg()">保存配置</button>
+      <button class="bh" onclick="saveCfg()" style="border-color:var(--mist-violet)">仅保存</button>
+      <button class="bg" onclick="saveCfg(true)">保存并重启</button>
     </div>
   </section>
 
@@ -425,7 +426,7 @@ function addChat(ch){
     +'<button class="x" onclick="this.parentNode.remove()">×</button>';
   document.getElementById('c-chats').appendChild(d);
 }
-function saveCfg(){
+function saveCfg(restart){
   try{
   var media=[];
   document.querySelectorAll('#c-media input:checked').forEach(function(cb){media.push(cb.value);});
@@ -449,13 +450,19 @@ function saveCfg(){
     language:document.getElementById('c-lang').value,
     date_format:document.getElementById('c-df').value,
     web_login_secret:document.getElementById('c-ws').value,
-    chat:chats
+    chat:chats,
+    restart_program: !!restart
   };
   var x=new XMLHttpRequest();x.open('POST','save_config',false);
   x.setRequestHeader('Content-Type','application/json');
   x.send(JSON.stringify(p));
   var r=JSON.parse(x.responseText);
-  toast(r.msg||'已保存');
+  if(restart){
+    toast('配置已保存，容器即将重启…');
+    setTimeout(function(){location.reload();},5000);
+  }else{
+    toast(r.msg||'已保存，重启容器后生效');
+  }
   }catch(e){toast('保存失败: '+e.message);}
 }
 loadCfg();

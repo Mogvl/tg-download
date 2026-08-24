@@ -327,6 +327,8 @@ def web_save_config():
         cfg["date_format"] = data["date_format"]
     if "chat" in data:
         cfg["chat"] = data["chat"]
+    if "restart_program" in data:
+        cfg["restart_program"] = data["restart_program"]
     if "file_formats" in data:
         ff = data["file_formats"]
         cfg["file_formats"] = {}
