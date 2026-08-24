@@ -7,11 +7,7 @@ RUN apk add --no-cache --virtual .build-deps gcc musl-dev
 
 # Install python deps
 COPY requirements.txt /app/
-RUN pip install --no-cache-dir \
-    --trusted-host pypi.org \
-    --trusted-host files.pythonhosted.org \
-    --trusted-host pypi.python.org \
-    -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Install rclone (runtime binary)
 RUN apk add --no-cache rclone

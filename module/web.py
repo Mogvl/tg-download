@@ -2,6 +2,7 @@
 
 import logging
 import os
+import secrets
 import threading
 
 from flask import Flask, jsonify, render_template, request
@@ -24,7 +25,9 @@ log.setLevel(logging.ERROR)
 
 _flask_app = Flask(__name__)
 
-_flask_app.secret_key = "tdl"
+# 会话密钥：默认随机生成（重启后需重新登录），
+# 若配置了 web_login_secret 则在 init_web 中以其作为密钥，保持登录态稳定
+_flask_app.secret_key = secrets.token_urlsafe(32)
 _login_manager = LoginManager()
 _login_manager.login_view = "login"
 _login_manager.init_app(_flask_app)
@@ -83,6 +86,7 @@ def init_web(app: Application):
     """
     global web_login_users
     if app.web_login_secret:
+        _flask_app.secret_key = app.web_login_secret
         web_login_users = {"root": app.web_login_secret}
     else:
         _flask_app.config["LOGIN_DISABLED"] = True
