@@ -272,106 +272,153 @@ button.stop-btn:hover {
 }
 button.stop-btn:active { transform: scale(0.96); }
 
-/* ---- 表格：透明化 + 发丝分隔 + 宽松行距 ---- */
-.layui-table-view {
+/* ---- 表格：全覆盖 layui 默认样式 ---- */
+.layui-table-view,
+.layui-table-view.layui-table-view {
   margin: 0 !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
+  border-radius: 0 !important;
 }
-.layui-table-view .layui-table-header {
+.layui-table-view .layui-table-box,
+.layui-table-view .layui-table-box {
+  background: transparent !important;
+}
+.layui-table-view .layui-table-header,
+.layui-table-view .layui-table-header,
+.layui-table-view .layui-table-header .layui-table {
   background: transparent !important;
   border: none !important;
 }
 .layui-table-view .layui-table-header th,
-.layui-table-view .layui-table-header .layui-table-cell {
+.layui-table-view .layui-table-header .layui-table-cell,
+.layui-table-view .layui-table-header th.layui-none {
   background: transparent !important;
   border: none !important;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  color: var(--ink-3);
-  text-transform: uppercase;
+  border-bottom: 1px solid rgba(122,96,158,0.10) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.14em !important;
+  color: var(--ink-3) !important;
+  text-transform: uppercase !important;
+  padding: 0 16px !important;
+  height: 40px !important;
+  line-height: 40px !important;
 }
-.layui-table-view .layui-table tbody tr {
-  transition: background 0.2s var(--ease);
+.layui-table-view .layui-table-header style {
+  display: none !important;
 }
-.layui-table-view .layui-table tbody tr:hover,
-.layui-table-hover {
+.layui-table-view .layui-table-body,
+.layui-table-view .layui-table-body .layui-table {
+  background: transparent !important;
+}
+.layui-table-view .layui-table-body tr {
+  transition: background 0.2s var(--ease) !important;
+  height: 44px !important;
+}
+.layui-table-view .layui-table-body tr:hover,
+.layui-table-view .layui-table-body tr.layui-table-hover {
   background: rgba(203,180,236,0.06) !important;
 }
 .layui-table-view .layui-table td,
-.layui-table-view .layui-table th {
+.layui-table-view .layui-table th,
+.layui-table-view .layui-table td.layui-table-cell {
   border: none !important;
   border-bottom: 1px solid rgba(122,96,158,0.06) !important;
+  padding: 0 16px !important;
+  font-size: 13px !important;
+  color: var(--ink) !important;
+  font-variant-numeric: tabular-nums !important;
+  line-height: 44px !important;
+  height: auto !important;
 }
 .layui-table-view .layui-table tbody tr:last-child td {
   border-bottom: none !important;
 }
-.layui-table-cell {
-  padding: 0 16px !important;
-  line-height: inherit !important;
-  font-size: 13px;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-.layui-none {
+.layui-table-view .layui-table-page {
   display: none !important;
 }
-
-/* ---- 进度条：纤细 + 渐变 + 微光 ---- */
+.layui-table-view .layui-none,
+.layui-table-view .layui-table-main .layui-none {
+  display: none !important;
+}
+/* 去掉 layui 表格的固定行高限制 */
+.layui-table-view .layui-table-body .layui-table-cell {
+  height: auto !important;
+  line-height: 44px !important;
+}
+.layui-table-view .layui-fixed {
+  background: transparent !important;
+}
+.layui-table-view .layui-fixed .layui-table {
+  background: transparent !important;
+}
+.layui-table-view .layui-fixed .layui-table-header th {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(122,96,158,0.10) !important;
+}
+/* ---- 进度条：全覆盖 layui 默认 ---- */
 .layui-progress,
-.layui-progress-big {
+.layui-progress.layui-progress-big,
+.layui-table .layui-progress {
   border-radius: 999px !important;
   background: rgba(122,96,158,0.07) !important;
   height: 7px !important;
-  overflow: hidden;
+  overflow: hidden !important;
+  margin: 0 !important;
 }
 .layui-progress-bar,
-.layui-progress-big .layui-progress-bar {
+.layui-progress-big .layui-progress-bar,
+.layui-table .layui-progress-bar {
   border-radius: 999px !important;
-  position: relative;
+  position: relative !important;
+  transition: width 0.5s var(--ease) !important;
 }
 .layui-progress-big .layui-progress-bar,
 .layui-table .layui-progress-bar {
   height: 7px !important;
   top: 0 !important;
   margin-top: 0 !important;
-  transition: width 0.5s var(--ease);
 }
-/* 珠光高光条 */
+/* 珠光高光 */
 .layui-progress-bar::after,
 .layui-table .layui-progress-bar::after {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 50%;
-  border-radius: 999px 999px 0 0;
-  background: linear-gradient(180deg, rgba(255,255,255,0.45), transparent);
-  pointer-events: none;
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 50% !important;
+  border-radius: 999px 999px 0 0 !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.5), transparent) !important;
+  pointer-events: none !important;
 }
 .layui-bg-blue,
-.layui-table .layui-bg-blue {
+.layui-table .layui-bg-blue,
+.layui-progress-bar.layui-bg-blue {
   background: linear-gradient(90deg, #d4c4ee, #c4a8e8) !important;
 }
 .layui-bg-red,
-.layui-table .layui-bg-red {
+.layui-table .layui-bg-red,
+.layui-progress-bar.layui-bg-red {
   background: linear-gradient(90deg, #f0c4d6, #e8a8c4) !important;
 }
 .layui-bg-green,
-.layui-table .layui-bg-green {
+.layui-table .layui-bg-green,
+.layui-progress-bar.layui-bg-green {
   background: linear-gradient(90deg, #b8dfc8, #96d4ae) !important;
 }
 .layui-progress-text,
-.layui-progress-big .layui-progress-text {
+.layui-progress-big .layui-progress-text,
+.layui-table .layui-progress-text {
   color: var(--ink-2) !important;
   font-size: 11px !important;
-  letter-spacing: 0.03em;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em !important;
+  font-variant-numeric: tabular-nums !important;
   line-height: 7px !important;
   top: 0 !important;
 }
-
 /* ---- 底部悬浮状态条 ---- */
 .layui-footer {
   left: 50%;
