@@ -70,23 +70,21 @@ body::after {
 }
 
 /* ---- 玻璃壳层：整个面板 ---- */
-.layui-tab.telegram_media_downloader,
-.layui-tab {
+.tg-glass {
   position: relative;
   z-index: 1;
   max-width: 1060px;
   margin: 0 auto !important;
-  background: var(--glass);
-  border: 1px solid var(--glass-edge);
-  border-radius: 28px;
+  background: var(--glass) !important;
+  border: 1px solid var(--glass-edge) !important;
+  border-radius: 28px !important;
   box-shadow: var(--shadow-shell),
-    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    inset 0 1px 0 rgba(255, 255, 255, 0.75) !important;
   backdrop-filter: blur(26px) saturate(150%);
   -webkit-backdrop-filter: blur(26px) saturate(150%);
-  padding: 36px 44px 52px;
+  padding: 36px 44px 52px !important;
   box-sizing: border-box;
 }
-.layui-tab .glass-shell { display: contents; }
 
 /* ---- 标签页 ---- */
 .header-title {

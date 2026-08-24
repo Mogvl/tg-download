@@ -145,19 +145,18 @@
   <!-- 提示弹窗 -->
   <div class="cfg-toast" id="toast"></div>
 
-  <div class="layui-tab layui-tab-brief" lay-filter="tg-tabs" style="max-width:1060px; margin:0 auto;">
-    <!-- 玻璃壳层 + 标签头 -->
-    <div class="glass-shell">
-      <ul class="layui-tab-title">
-        <li class="layui-this" data-tab="config">配置</li>
-        <li data-tab="downloads">下载</li>
-        <li data-tab="logs">日志</li>
-        <li data-tab="history">历史</li>
-      </ul>
+  <!-- 标签页（标准 layui 结构，无额外包装） -->
+  <div class="layui-tab layui-tab-brief tg-glass" lay-filter="tg-tabs">
+    <ul class="layui-tab-title">
+      <li class="layui-this" data-tab="config">配置</li>
+      <li data-tab="downloads">下载</li>
+      <li data-tab="logs">日志</li>
+      <li data-tab="history">历史</li>
+    </ul>
 
+    <div class="layui-tab-content">
       <!-- ========== 1. 配置 ========== -->
-      <div class="layui-tab-content">
-        <div class="layui-tab-item layui-show" id="tab-config">
+      <div class="layui-tab-item layui-show" id="tab-config">
           <!-- API 凭证 -->
           <div class="cfg-section">
             <div class="cfg-section-title">API 凭证</div>
@@ -288,8 +287,7 @@
             <button id="hist-next" onclick="histPage(1)">›</button>
           </div>
         </div>
-      </div><!-- /layui-tab-content -->
-    </div><!-- /glass-shell -->
+    </div><!-- /layui-tab-content -->
   </div><!-- /layui-tab -->
 
   <!-- 底部悬浮条 -->
