@@ -17,7 +17,7 @@
         <div class="tips">请输入密码登录</div>
       </div>
       <div class="password-input">
-        <input type="password" class="input-p" placeholder="请输入密码" id="password">
+        <input type="password" class="input-p" placeholder="请输入密码" id="password" onkeydown="if(event.key==='Enter')login()">
         <div class="tip">密码</div>
       </div>
       <button class="confirm-btn" onclick="login()">确认</button>
