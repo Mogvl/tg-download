@@ -95,8 +95,12 @@
 <div id="toast"></div>
 
 <div class="tg-glass" style="max-width:1060px; margin:0 auto;">
-  <!-- 实时速度（左上角） -->
-  <div class="dl-speed-top" id="download_speed_title">0.00 B/s</div>
+  <!-- 版本 + 实时速度（左上角） -->
+  <div class="dl-speed-top">
+    <span style="color:var(--mist-violet);font-weight:600">v<span id="app_version">—</span></span>
+    <span style="margin:0 8px;color:var(--ink-3);opacity:.4">|</span>
+    <span id="download_speed_title">0.00 B/s</span>
+  </div>
   <!-- 导航 -->
   <div class="nav">
     <button class="nav-btn on" onclick="showTab('config',this)">配置</button>
@@ -250,10 +254,7 @@
   </section>
 </div>
 
-<!-- 底部状态条 -->
-<div class="layui-footer" id="footer-bar">
-  <span>版本 <b id="app_version" style="color:var(--mist-violet)">—</b></span>
-</div>
+<!-- 底部留白（内容已在左上角显示） -->
 
 <script src="static/layui/layui.js"></script>
 <script>
