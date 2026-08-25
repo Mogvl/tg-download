@@ -883,8 +883,11 @@ class Application:
             if idx >= len(self.app_data["chat"]):
                 self.app_data["chat"].append({})
 
-            if value.finish_task:
-                # 仅当该频道仍存在于磁盘最新配置中才回写进度
+            # 回写进度游标：不再要求整个频道 finish 才回写。
+            # 否则下载到一半重启时 last_read_message_id 不持久化，重启后会从频道
+            # 最旧消息重扫（已下文件虽被跳过但不必要地耗时）。
+            # 只要该频道已有成功下载的进度（last_read_message_id > 0）即回写。
+            if value.last_read_message_id > 0:
                 for _chat_item in self.config.get("chat", []):
                     if _chat_item.get("chat_id") == key:
                         _chat_item["last_read_message_id"] = (
