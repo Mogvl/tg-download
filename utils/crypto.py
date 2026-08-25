@@ -25,7 +25,7 @@ class AesBase64(object):
         """
         cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
         content_padding = self.pkcs7padding(content)
-        encrypt_bytes = cipher.encrypt(content_padding.encode("utf-8"))
+        encrypt_bytes = cipher.encrypt(content_padding)
         return base64.b64encode(encrypt_bytes)
 
     def decrypt(self, content):
@@ -37,41 +37,48 @@ class AesBase64(object):
             content (str): The content to be decrypted.
 
         Returns:
-            str: The decrypted text.
+            str: The decrypted text, or None on any error (malformed input
+            must not raise, otherwise login endpoint 500s).
         """
-        cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
-        content = base64.b64decode(content)
-        text = cipher.decrypt(content).decode("utf-8")
-        return self.pkcs7unpadding(text)
+        try:
+            raw = base64.b64decode(content, validate=False)
+            if len(raw) == 0 or len(raw) % 16 != 0:
+                return None
+            cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
+            text = cipher.decrypt(raw)
+            return self.pkcs7unpadding(text)
+        except Exception:
+            return None
 
-    def pkcs7unpadding(self, text):
+    def pkcs7unpadding(self, text: bytes) -> str:
         """
-        Removes the PKCS#7 padding from the given text.
+        Removes the PKCS#7 padding from the given bytes.
 
         Parameters:
-            text (str): The text to remove padding from.
+            text (bytes): The decrypted bytes.
 
         Returns:
-            str: The text without PKCS#7 padding.
+            str: The text without PKCS#7 padding (utf-8 decoded).
         """
-        length = len(text)
-        unpadding = ord(text[length - 1])
-        return text[0 : length - unpadding]
+        if not text:
+            return ""
+        pad = text[-1]
+        if pad < 1 or pad > 16 or pad > len(text):
+            # 非法 padding，按无 padding 处理
+            return text.decode("utf-8", errors="replace")
+        return text[:-pad].decode("utf-8", errors="replace")
 
-    def pkcs7padding(self, text):
+    def pkcs7padding(self, text: str) -> bytes:
         """
-        Adds PKCS7 padding to the given text.
+        Adds PKCS7 padding to the given text, strictly by UTF-8 bytes.
 
         Args:
             text (str): The text to be padded.
 
         Returns:
-            str: The padded text.
+            bytes: The padded UTF-8 bytes.
         """
         bs = 16
-        length = len(text)
-        bytes_length = len(text.encode("utf-8"))
-        padding_size = length if (bytes_length == length) else bytes_length
-        padding = bs - padding_size % bs
-        padding_text = chr(padding) * padding
-        return text + padding_text
+        data = text.encode("utf-8")
+        padding = bs - len(data) % bs
+        return data + bytes([padding]) * padding

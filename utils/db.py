@@ -9,10 +9,24 @@ logger = logging.getLogger("tdl.db")
 
 DB_PATH = os.path.join(os.path.abspath("."), "downloads", "downloads.sqlite3")
 _db_ok = False
+# 写锁：串行化并发写，配合 WAL + busy_timeout 避免 database is locked
+_write_lock = None  # 延迟初始化（须在 init_db 后）
+
+
+def _get_lock():
+    global _write_lock
+    if _write_lock is None:
+        import threading
+
+        _write_lock = threading.Lock()
+    return _write_lock
 
 
 def _conn():
-    return sqlite3.connect(DB_PATH)
+    # check_same_thread=False：允许 Flask/下载多线程各自使用连接
+    conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
+    conn.execute("PRAGMA busy_timeout = 30000")
+    return conn
 
 
 def init_db():
@@ -21,6 +35,8 @@ def init_db():
     try:
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
         with _conn() as c:
+            c.execute("PRAGMA journal_mode=WAL")
+            c.execute("PRAGMA synchronous=NORMAL")
             c.execute("""
                 CREATE TABLE IF NOT EXISTS download_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,7 +49,8 @@ def init_db():
                     download_timestamp REAL NOT NULL,
                     status TEXT,
                     upload_telegram_time REAL,
-                    publish_time REAL
+                    publish_time REAL,
+                    UNIQUE(chat_id, message_id)
                 )
             """)
             # 兼容旧库：新增字段（sqlite 不支持 ADD COLUMN IF NOT EXISTS）
@@ -50,15 +67,19 @@ def init_db():
 
 
 def record_download(chat_id, message_id, file_name, file_size, file_path="", media_type="", status="success", publish_time=None):
-    """记录一次下载（status: success / failed / skip）"""
+    """记录一次下载（status: success / failed / skip）
+
+    同一 (chat_id, message_id) 只保留一条：重试/重启时覆盖旧记录，避免历史重复。
+    """
     if not _db_ok:
         return
     try:
-        with _conn() as c:
-            c.execute(
-                "INSERT INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp,status,publish_time) VALUES (?,?,?,?,?,?,?,?,?)",
-                (str(chat_id), message_id, file_name, file_size, file_path, media_type, time.time(), status, publish_time),
-            )
+        with _get_lock():
+            with _conn() as c:
+                c.execute(
+                    "INSERT OR IGNORE INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp,status,publish_time) VALUES (?,?,?,?,?,?,?,?,?)",
+                    (str(chat_id), message_id, file_name, file_size, file_path, media_type, time.time(), status, publish_time),
+                )
     except Exception as e:
         logger.error(f"记录下载失败 {file_name}: {e}")
 
@@ -68,12 +89,13 @@ def record_upload_time(chat_id, message_id, ts=None):
     if not _db_ok:
         return
     try:
-        with _conn() as c:
-            c.execute(
-                "UPDATE download_history SET upload_telegram_time = ? "
-                "WHERE chat_id = ? AND message_id = ?",
-                (ts if ts is not None else time.time(), str(chat_id), message_id),
-            )
+        with _get_lock():
+            with _conn() as c:
+                c.execute(
+                    "UPDATE download_history SET upload_telegram_time = ? "
+                    "WHERE chat_id = ? AND message_id = ?",
+                    (ts if ts is not None else time.time(), str(chat_id), message_id),
+                )
     except Exception as e:
         logger.error(f"记录转发时间失败: {e}")
 
@@ -88,6 +110,7 @@ def get_history(page=1, per_page=30, search="", media_type="All", sort_by="downl
         "file_name": "file_name",
         "file_size": "file_size",
         "media_type": "media_type",
+        "publish_time": "publish_time",
     }
     col = valid_sort.get(sort_by, "download_timestamp")
     direction = "DESC" if sort_desc else "ASC"
@@ -122,8 +145,9 @@ def clear_history():
     if not _db_ok:
         return
     try:
-        with _conn() as c:
-            c.execute("DELETE FROM download_history")
+        with _get_lock():
+            with _conn() as c:
+                c.execute("DELETE FROM download_history")
     except Exception as e:
         logger.error(f"清空历史失败: {e}")
 
@@ -137,30 +161,31 @@ def backfill_from_dir(base_dir, media_type="document"):
         return 0
     added = 0
     try:
-        with _conn() as c:
-            existing = {
-                (r[0], r[1])
-                for r in c.execute("SELECT file_name, file_size FROM download_history").fetchall()
-            }
-            for root, _dirs, files in os.walk(base_dir):
-                for name in files:
-                    if name.startswith(".") or name.endswith((".session", ".sqlite3")):
-                        continue
-                    fpath = os.path.join(root, name)
-                    try:
-                        size = os.path.getsize(fpath)
-                    except OSError:
-                        continue
-                    if (name, size) in existing:
-                        continue
-                    rel = os.path.relpath(fpath, base_dir)
-                    mtime = os.path.getmtime(fpath)
-                    c.execute(
-                        "INSERT INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp,status) VALUES (?,?,?,?,?,?,?,?)",
-                        ("-", 0, name, size, rel, media_type, mtime, "success"),
-                    )
-                    existing.add((name, size))
-                    added += 1
+        with _get_lock():
+            with _conn() as c:
+                existing = {
+                    (r[0], r[1])
+                    for r in c.execute("SELECT file_name, file_size FROM download_history").fetchall()
+                }
+                for root, _dirs, files in os.walk(base_dir):
+                    for name in files:
+                        if name.startswith(".") or name.endswith((".session", ".sqlite3")):
+                            continue
+                        fpath = os.path.join(root, name)
+                        try:
+                            size = os.path.getsize(fpath)
+                        except OSError:
+                            continue
+                        if (name, size) in existing:
+                            continue
+                        rel = os.path.relpath(fpath, base_dir)
+                        mtime = os.path.getmtime(fpath)
+                        c.execute(
+                            "INSERT OR IGNORE INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp,status) VALUES (?,?,?,?,?,?,?,?)",
+                            ("-", 0, name, size, rel, media_type, mtime, "success"),
+                        )
+                        existing.add((name, size))
+                        added += 1
     except Exception as e:
         logger.error(f"补录历史失败: {e}")
     if added:
