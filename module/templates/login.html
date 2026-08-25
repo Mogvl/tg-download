@@ -53,8 +53,7 @@
         request('login', 'post', { password: encryptData }).then((res) => {
           const { code } = res
           if (code === '1') {
-            const { host } = window.location;
-            window.location.href = 'http://' + host
+            window.location.href = '/'
           } else {
             layer.msg('密码错误！')
           }

@@ -9,13 +9,7 @@
   <link href="static/css/index.css" rel="stylesheet">
   <style>
     body { padding: 32px 24px 120px; }
-    /* ── 进度条统一渲染 ── */
-function pbarHtml(pct){
-  var cls=pct>=100?'pbar-green':pct>30?'pbar-violet':'pbar-pink';
-  return '<div class="pbar-wrap"><div class="pbar"><div class="pbar-fill '+cls+'" style="width:'+pct+'%"></div></div><span class="pbar-pct">'+pct+'%</span></div>';
-}
-
-/* ── 标签页切换 ── */
+    /* ── 标签页切换 ── */
     .tg-glass > section { display:none; }
     .tg-glass > section.on { display:block; }
     .nav { display:flex; gap:6px; margin-bottom:28px; border-bottom:1px solid var(--hairline); padding-bottom:12px; }
@@ -327,7 +321,7 @@ function pbarHtml(pct){
 /* ── 全局 ── */
 var _logAuto=true, _hPg=1, _hT=0, _logTmr=null, _logListMode=true;
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200);}
-function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;');}
 
 /* ── 进度条统一渲染 ── */
 function pbarHtml(pct){
@@ -391,7 +385,7 @@ layui.use(['table','element'],function(){
         var ids={};
         for(var i=0;i<res.length;i++){
           var k=res[i].chat+'-'+res[i].id;ids[k]=true;
-          var ex=tb.find('tr[data-index="'+k+'"]');
+          var ex=tb.find('tr').filter(function(){return $(this).attr('data-index')===k;});
           if(ex.length){
             var fill=ex.find('.pbar-fill'), pct=ex.find('.pbar-pct');
             if(fill.length){
@@ -513,7 +507,8 @@ function loadCfg(){
   document.getElementById('c-mt').value=c.max_download_task||5;
   document.getElementById('c-lang').value=c.language||'EN';
   document.getElementById('c-df').value=c.date_format||'%Y_%m';
-  document.getElementById('c-ws').value=c.web_login_secret||'';
+  document.getElementById('c-ws').value='';
+  document.getElementById('c-ws').placeholder=c.web_login_secret_set?'已设置（留空不修改）':'未设置';
   document.getElementById('c-wle').checked=!!c.web_login_enabled;
   var cl=document.getElementById('c-chats');cl.innerHTML='';
   (c.chat||[]).forEach(function(ch){addChat(ch);});
@@ -522,8 +517,10 @@ function loadCfg(){
 function addChat(ch){
   ch=ch||{};
   var d=document.createElement('div');d.className='cc';
-  d.innerHTML='<input class="cid" placeholder="chat_id（me / @channel / -100xxx）" value="'+(ch.chat_id||'')+'">'
-    +'<input class="clr" type="number" placeholder="last_read_msg_id" value="'+(ch.last_read_message_id||0)+'" style="max-width:160px">'
+  var cid=esc(ch.chat_id||'');
+  var clr=esc(ch.last_read_message_id||0);
+  d.innerHTML='<input class="cid" placeholder="chat_id（me / @channel / -100xxx）" value="'+cid+'">'
+    +'<input class="clr" type="number" placeholder="last_read_msg_id" value="'+clr+'" style="max-width:160px">'
     +'<button class="mv" onclick="moveChat(this,1)" title="上移">↑</button>'
     +'<button class="mv" onclick="moveChat(this,-1)" title="下移">↓</button>'
     +'<button class="x" onclick="this.parentNode.remove()">×</button>';
@@ -541,6 +538,8 @@ function moveChat(btn,dir){
 }
 function saveCfg(restart){
   try{
+  var ah=document.getElementById('c-apih').value;
+  if(ah && ah.length<=4){toast('api_hash 长度不足，未修改');ah='';}
   var media=[];
   document.querySelectorAll('#c-media input:checked').forEach(function(cb){media.push(cb.value);});
   var chats=[];
@@ -550,7 +549,7 @@ function saveCfg(restart){
   });
   var p={
     api_id:parseInt(document.getElementById('c-apid').value)||null,
-    api_hash:document.getElementById('c-apih').value,
+    api_hash:ah,
     bot_token:document.getElementById('c-bot').value,
     media_types:media,
     file_formats:{
@@ -585,33 +584,48 @@ loadCfg();
 function startLog(){if(_logTmr)return;_logTmr=setInterval(pollLog,2000);pollLog();}
 function stopLog(){if(_logTmr){clearInterval(_logTmr);_logTmr=null;}}
 function pollLog(){
-  var x=new XMLHttpRequest();x.open('GET','get_logs?lines=200',false);x.send();
-  var lines=JSON.parse(x.responseText);
-  document.getElementById('log-box').textContent=lines.join('\n');
-  document.getElementById('log-n').textContent=lines.length+' 行';
-  if(_logAuto){var b=document.getElementById('log-box');b.scrollTop=b.scrollHeight;}
-  if(_logListMode)renderLogTable();
+  var x=new XMLHttpRequest();
+  x.open('GET','get_logs?lines=200',true);
+  x.onreadystatechange=function(){
+    if(x.readyState!==4)return;
+    if(x.status===200){
+      try{
+        var lines=JSON.parse(x.responseText);
+        document.getElementById('log-box').textContent=lines.join('\n');
+        document.getElementById('log-n').textContent=lines.length+' 行';
+        if(_logAuto){var b=document.getElementById('log-box');b.scrollTop=b.scrollHeight;}
+        if(_logListMode)renderLogTable();
+      }catch(e){}
+    }
+  };
+  x.send();
 }
 function renderLogTable(){
   // 列表视图：从下载历史库取结构化数据，渲染 5 列表格（最近 50 条）
-  var x=new XMLHttpRequest();x.open('GET','get_history?page=1&per_page=50&media_type=All',false);x.send();
-  var d=JSON.parse(x.responseText);
-  var tb=document.getElementById('log-list-body');
-  if(!d.files||!d.files.length){tb.innerHTML='<tr><td colspan="5" class="empty">暂无记录</td></tr>';return;}
-  var html='';
-  d.files.forEach(function(f){
-    var ext=(f.name.split('.').pop()||'').toUpperCase();
-    var st=f.status==='failed'?'<span class="st-fail">失败</span>':f.status==='skip'?'<span class="st-skip">跳过</span>':'<span class="st-ok">成功</span>';
-    var up=f.publish_time_str||'-';
-    html+='<tr>'
-      +'<td>'+esc(f.mtime_str)+'</td>'
-      +'<td>'+esc(ext)+'</td>'
-      +'<td>'+st+'</td>'
-      +'<td>'+esc(up)+'</td>'
-      +'<td class="log-fname">'+esc(f.name)+'</td>'
-      +'</tr>';
-  });
-  tb.innerHTML=html;
+  var x=new XMLHttpRequest();x.open('GET','get_history?page=1&per_page=50&media_type=All',true);
+  x.onreadystatechange=function(){
+    if(x.readyState!==4||x.status!==200)return;
+    try{
+      var d=JSON.parse(x.responseText);
+      var tb=document.getElementById('log-list-body');
+      if(!d.files||!d.files.length){tb.innerHTML='<tr><td colspan="5" class="empty">暂无记录</td></tr>';return;}
+      var html='';
+      d.files.forEach(function(f){
+        var ext=(f.name.split('.').pop()||'').toUpperCase();
+        var st=f.status==='failed'?'<span class="st-fail">失败</span>':f.status==='skip'?'<span class="st-skip">跳过</span>':'<span class="st-ok">成功</span>';
+        var up=f.publish_time_str||'-';
+        html+='<tr>'
+          +'<td>'+esc(f.mtime_str)+'</td>'
+          +'<td>'+esc(ext)+'</td>'
+          +'<td>'+st+'</td>'
+          +'<td>'+esc(up)+'</td>'
+          +'<td class="log-fname">'+esc(f.name)+'</td>'
+          +'</tr>';
+      });
+      tb.innerHTML=html;
+    }catch(e){}
+  };
+  x.send();
 }
 function logAutoToggle(){
   _logAuto=!_logAuto;
@@ -641,13 +655,15 @@ function hLoad(){
   document.getElementById('h-prev').disabled=_hPg<=1;
   document.getElementById('h-next').disabled=_hPg>=pg;
   var tb=document.getElementById('h-body');tb.innerHTML='';
-  if(!d.files.length){tb.innerHTML='<tr><td colspan="5" class="empty">暂无文件</td></tr>';return;}
+  if(!d.files || !d.files.length){tb.innerHTML='<tr><td colspan="5" class="empty">暂无文件</td></tr>';return;}
+  var html='';
   d.files.forEach(function(f){
     var ext=(f.name.split('.').pop()||'').toUpperCase();
     var st=f.status==='failed'?'<span class="st-fail">失败</span>':f.status==='skip'?'<span class="st-skip">跳过</span>':'<span class="st-ok">成功</span>';
     var up=f.publish_time_str||'-';
-    tb.innerHTML+='<tr><td>'+esc(f.mtime_str)+'</td><td>'+esc(ext)+'</td><td>'+st+'</td><td>'+esc(up)+'</td><td class="log-fname">'+esc(f.name)+'</td></tr>';
+    html+='<tr><td>'+esc(f.mtime_str)+'</td><td>'+esc(ext)+'</td><td>'+st+'</td><td>'+esc(up)+'</td><td class="log-fname">'+esc(f.name)+'</td></tr>';
   });
+  tb.innerHTML=html;
 }
 function hPage(d){
     var pps=parseInt(document.getElementById('h-pps').value)||20;

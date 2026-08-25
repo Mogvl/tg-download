@@ -1,4 +1,4 @@
-var request = (url, type = 'get' | 'post', data) => {
+var request = (url, type = 'get', data) => {
     const $ = layui.$
 
     return new Promise((resolve, reject) => {
