@@ -152,6 +152,18 @@ def clear_history():
         logger.error(f"清空历史失败: {e}")
 
 
+def get_total_count() -> int:
+    """历史累计总数（全量，不受搜索/筛选影响）"""
+    if not _db_ok:
+        return 0
+    try:
+        with _conn() as c:
+            return c.execute("SELECT COUNT(*) FROM download_history").fetchone()[0]
+    except Exception as e:
+        logger.error(f"查询历史总数失败: {e}")
+        return 0
+
+
 def backfill_from_dir(base_dir, media_type="document"):
     """启动时扫描下载目录，把数据库中不存在的旧文件补录进历史。
 

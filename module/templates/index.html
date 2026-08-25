@@ -349,6 +349,16 @@
 
   <!-- ═══════ 4. 历史 ═══════ -->
   <section id="p-history">
+    <div class="dl-stats" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px">
+      <div class="stat-cell">
+        <span class="stat-num" id="h-total-all" style="color:#6db88a">0</span>
+        <span class="stat-lbl">已完成（累计）</span>
+      </div>
+      <div class="stat-cell">
+        <span class="stat-num" id="h-total-now" style="color:var(--ink)">0</span>
+        <span class="stat-lbl">当前筛选</span>
+      </div>
+    </div>
     <div class="hs">
       <input id="h-q" placeholder="搜索文件名或频道…" onkeydown="if(event.key==='Enter')hLoad()">
       <select id="h-type" onchange="hLoad()" style="height:38px;padding:0 10px;border:1px solid var(--hairline);border-radius:10px;background:rgba(255,255,255,.55);font-size:12.5px;color:var(--ink);outline:none;">
@@ -750,6 +760,9 @@ function hLoad(){
   document.getElementById('h-info').textContent=_hPg+' / '+pg+'  ·  '+d.total+' 条';
   document.getElementById('h-prev').disabled=_hPg<=1;
   document.getElementById('h-next').disabled=_hPg>=pg;
+  // 累计总数（全量）与当前筛选数
+  if(d.total_all!==undefined){document.getElementById('h-total-all').textContent=d.total_all||0;}
+  document.getElementById('h-total-now').textContent=d.total||0;
   var tb=document.getElementById('h-body');tb.innerHTML='';
   if(!d.files || !d.files.length){tb.innerHTML='<tr><td colspan="5" class="empty">暂无文件</td></tr>';return;}
   var html='';

@@ -560,6 +560,8 @@ def web_get_history():
         page=page, per_page=per_page, search=search,
         media_type=media_type, sort_by=sort_by, sort_desc=sort_desc,
     )
+    # 历史累计总数（全量，不受搜索/筛选影响），供历史页「已完成」统计展示
+    total_all = db_mod.get_total_count()
 
     files = []
     for r in records:
@@ -578,7 +580,7 @@ def web_get_history():
             "publish_time_str": time.strftime("%Y-%m-%d %H:%M", time.localtime(pub_ts)) if pub_ts else "",
         })
 
-    return jsonify({"files": files, "total": total})
+    return jsonify({"files": files, "total": total, "total_all": total_all})
 
 
 @_flask_app.route("/clear_history", methods=["POST"])
