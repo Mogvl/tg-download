@@ -343,11 +343,11 @@ layui.use(['table','element'],function(){
             if(res[i].download_progress>=100)ex.remove();
           } else if(res[i].download_progress<100){
             tb.append('<tr data-index="'+esc(k)+'">'
-              +'<td data-field="chat"><div class="layui-table-cell">'+esc(res[i].chat)+'</div></td>'
-              +'<td data-field="id"><div class="layui-table-cell">'+esc(res[i].id)+'</div></td>'
-              +'<td data-field="filename"><div class="layui-table-cell">'+esc(res[i].filename)+'</div></td>'
-              +'<td data-field="total_size"><div class="layui-table-cell">'+esc(res[i].total_size)+'</div></td>'
-              +'<td data-field="download_progress"><div class="layui-table-cell"><div class="layui-progress layui-progress-big" lay-showpercent="true"><div class="layui-progress-bar layui-bg-blue" style="width:'+res[i].download_progress+'%"><span class="layui-progress-text">'+res[i].download_progress+'%</span></div></div></div></td>'
+              +'<td data-field="chat" data-key="1-0-0"><div class="layui-table-cell laytable-cell-1-0-0">'+esc(res[i].chat)+'</div></td>'
+              +'<td data-field="id" data-key="1-0-1"><div class="layui-table-cell laytable-cell-1-0-1">'+esc(res[i].id)+'</div></td>'
+              +'<td data-field="filename" data-key="1-0-2"><div class="layui-table-cell laytable-cell-1-0-2">'+esc(res[i].filename)+'</div></td>'
+              +'<td data-field="total_size" data-key="1-0-3"><div class="layui-table-cell laytable-cell-1-0-3">'+esc(res[i].total_size)+'</div></td>'
+              +'<td data-field="download_progress" data-key="1-0-4"><div class="layui-table-cell laytable-cell-1-0-4"><div class="layui-progress layui-progress-big" lay-showpercent="true"><div class="layui-progress-bar layui-bg-blue" style="width:'+res[i].download_progress+'%"><span class="layui-progress-text">'+res[i].download_progress+'%</span></div></div></div></td>'
               +'<td data-field="download_speed" data-key="1-0-5"><div class="layui-table-cell laytable-cell-1-0-5">'+esc(res[i].download_speed)+'</div></td></tr>');
           }
         }
