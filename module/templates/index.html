@@ -107,6 +107,53 @@
     .pbar-green  { background:linear-gradient(90deg,#34d399,#10b981); box-shadow:0 1px 6px rgba(16,185,129,.28); }
     .pbar-pct { font-size:12.5px; font-weight:600; color:var(--ink); min-width:46px; text-align:right;
       font-variant-numeric:tabular-nums; }
+    /* ── 速度胶囊（左上角） ── */
+    .speed-pill {
+      display:inline-flex; align-items:center; gap:6px; margin-left:12px;
+      padding:4px 14px; border-radius:999px;
+      background:var(--grad); color:#fff; font-size:12px; font-weight:600;
+      font-variant-numeric:tabular-nums; letter-spacing:.03em;
+      box-shadow:0 4px 14px rgba(178,138,222,.28);
+    }
+    .speed-pill .speed-arrow { font-size:13px; animation:speed-pulse 1.6s ease-in-out infinite; }
+    @keyframes speed-pulse { 0%,100%{opacity:1;} 50%{opacity:.45;} }
+    /* ── 统计概览条 ── */
+    .dl-stats {
+      display:grid; grid-template-columns:repeat(4,1fr); gap:12px;
+      margin-bottom:20px;
+    }
+    .stat-cell {
+      background:rgba(255,255,255,.42); border:1px solid rgba(255,255,255,.6);
+      border-radius:14px; padding:14px 16px; text-align:center;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.6), 0 2px 10px rgba(146,112,190,.05);
+    }
+    .stat-num { display:block; font-size:22px; font-weight:700; color:var(--ink);
+      font-variant-numeric:tabular-nums; line-height:1.2; }
+    .stat-lbl { display:block; margin-top:4px; font-size:11px; font-weight:500;
+      letter-spacing:.1em; color:var(--ink-3); text-transform:uppercase; }
+    #st-failed { color:#d4748a; }
+    #st-finished { color:#6db88a; }
+    /* ── 实时表格：类型图标 + 文件名 + 状态徽章 ── */
+    .ftype {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:24px; height:24px; border-radius:7px; margin-right:8px;
+      font-size:12px; color:#fff; vertical-align:middle; flex:none;
+    }
+    .ftype-video   { background:linear-gradient(135deg,#a78bfa,#8b5cf6); }
+    .ftype-audio   { background:linear-gradient(135deg,#f472b6,#ec4899); }
+    .ftype-photo   { background:linear-gradient(135deg,#fbbf24,#f59e0b); }
+    .ftype-document{ background:linear-gradient(135deg,#60a5fa,#3b82f6); }
+    .ftype-voice   { background:linear-gradient(135deg,#34d399,#10b981); }
+    .ftype-animation{ background:linear-gradient(135deg,#f472b6,#a78bfa); }
+    .ftype-unknown { background:rgba(146,112,190,.35); }
+    .fname { vertical-align:middle; word-break:break-all; }
+    .st-badge {
+      display:inline-block; padding:3px 10px; border-radius:999px;
+      font-size:11px; font-weight:600; letter-spacing:.04em; white-space:nowrap;
+    }
+    .st-run  { background:rgba(178,138,222,.14); color:#8b5cf6; }
+    .st-wait { background:rgba(146,112,190,.08); color:var(--ink-3); }
+    .st-done { background:rgba(52,211,153,.16); color:#10b981; }
     /* ── 历史 ── */
     .hs { display:flex; gap:10px; margin-bottom:18px; }
     .hs input { flex:1; height:38px; padding:0 12px; border:1px solid var(--hairline); border-radius:10px; background:rgba(255,255,255,.55); font-size:13px; color:var(--ink); outline:none; }
@@ -131,8 +178,7 @@
   <!-- 版本 + 实时速度（左上角） -->
   <div class="dl-speed-top">
     <span style="color:var(--mist-violet);font-weight:600">v<span id="app_version">—</span></span>
-    <span style="margin:0 8px;color:var(--ink-3);opacity:.4">|</span>
-    <span id="download_speed_title">0.00 B/s</span>
+    <span class="speed-pill" id="speed-pill"><span class="speed-arrow">↓</span><span id="download_speed_title">0.00 B/s</span></span>
   </div>
   <!-- 导航 -->
   <div class="nav">
@@ -199,6 +245,25 @@
 
   <!-- ═══════ 2. 下载 ═══════ -->
   <section id="p-downloads">
+    <!-- 统计概览条 -->
+    <div class="dl-stats">
+      <div class="stat-cell">
+        <span class="stat-num" id="st-active">0</span>
+        <span class="stat-lbl">进行中</span>
+      </div>
+      <div class="stat-cell">
+        <span class="stat-num" id="st-finished">0</span>
+        <span class="stat-lbl">已完成</span>
+      </div>
+      <div class="stat-cell">
+        <span class="stat-num" id="st-failed">0</span>
+        <span class="stat-lbl">失败</span>
+      </div>
+      <div class="stat-cell">
+        <span class="stat-num" id="st-total">0</span>
+        <span class="stat-lbl">总任务</span>
+      </div>
+    </div>
     <!-- 实时下载 -->
     <div class="dl-card">
       <div class="dl-head">
@@ -329,6 +394,12 @@ function pbarHtml(pct){
   return '<div class="pbar-wrap"><div class="pbar"><div class="pbar-fill '+cls+'" style="width:'+pct+'%"></div></div><span class="pbar-pct">'+pct+'%</span></div>';
 }
 
+/* ── 媒体类型图标 ── */
+function ftypeIcon(ft){
+  var m={'video':'▶','audio':'♪','photo':'▧','document':'▤','voice':'▮','animation':'◈','unknown':'?'};
+  return m[ft]||m['unknown'];
+}
+
 /* ── 标签页切换 ── */
 var _dlTableReady=false;
 function showTab(key,btn){
@@ -355,14 +426,20 @@ layui.use(['table','element'],function(){
 
   table.render({elem:'#download_list',data:[],height:'full-320',limit:10000,
     cols:[[
-      {field:'chat',title:'会话',width:90},
-      {field:'id',title:'ID',width:70},
-      {field:'filename',title:'文件名'},
+      {field:'filename',title:'文件',templet:function(d){
+        return '<span class="ftype ftype-'+d.ftype+'">'+ftypeIcon(d.ftype)+'</span><span class="fname">'+esc(d.filename)+'</span>';
+      }},
       {field:'total_size',title:'大小',width:90},
       {field:'download_progress',title:'进度',templet:function(d){
         return pbarHtml(d.download_progress);
       }},
-      {field:'download_speed',title:'速度',width:100}
+      {field:'download_speed',title:'速度',width:100},
+      {field:'status',title:'状态',width:80,templet:function(d){
+        var p=d.download_progress;
+        if(p>=100)return '<span class="st-badge st-done">已完成</span>';
+        if(p>0)return '<span class="st-badge st-run">下载中</span>';
+        return '<span class="st-badge st-wait">排队中</span>';
+      }}
     ]],done:function(){el.render();}
   });
 
@@ -394,15 +471,21 @@ layui.use(['table','element'],function(){
               fill.css('width',res[i].download_progress+'%');
               pct.text(res[i].download_progress+'%');
             }
+            // 更新状态徽章
+            var st=ex.find('.st-badge');
+            if(st.length){
+              var prog=res[i].download_progress;
+              var html=prog>=100?'<span class="st-badge st-done">已完成</span>':prog>0?'<span class="st-badge st-run">下载中</span>':'<span class="st-badge st-wait">排队中</span>';
+              if(prog>=100){ex.find('.st-badge').replaceWith(html);ex.css('opacity','.65');}
+            }
             if(res[i].download_progress>=100)ex.remove();
           } else if(res[i].download_progress<100){
             tb.append('<tr data-index="'+esc(k)+'">'
-              +'<td data-field="chat" data-key="1-0-0"><div class="layui-table-cell laytable-cell-1-0-0">'+esc(res[i].chat)+'</div></td>'
-              +'<td data-field="id" data-key="1-0-1"><div class="layui-table-cell laytable-cell-1-0-1">'+esc(res[i].id)+'</div></td>'
-              +'<td data-field="filename" data-key="1-0-2"><div class="layui-table-cell laytable-cell-1-0-2">'+esc(res[i].filename)+'</div></td>'
-              +'<td data-field="total_size" data-key="1-0-3"><div class="layui-table-cell laytable-cell-1-0-3">'+esc(res[i].total_size)+'</div></td>'
-              +'<td data-field="download_progress" data-key="1-0-4"><div class="layui-table-cell laytable-cell-1-0-4">'+pbarHtml(res[i].download_progress)+'</div></td>'
-              +'<td data-field="download_speed" data-key="1-0-5"><div class="layui-table-cell laytable-cell-1-0-5">'+esc(res[i].download_speed)+'</div></td></tr>');
+              +'<td data-field="filename" data-key="1-0-0"><div class="layui-table-cell laytable-cell-1-0-0"><span class="ftype ftype-'+esc(res[i].ftype)+'">'+ftypeIcon(res[i].ftype)+'</span><span class="fname">'+esc(res[i].filename)+'</span></div></td>'
+              +'<td data-field="total_size" data-key="1-0-1"><div class="layui-table-cell laytable-cell-1-0-1">'+esc(res[i].total_size)+'</div></td>'
+              +'<td data-field="download_progress" data-key="1-0-2"><div class="layui-table-cell laytable-cell-1-0-2">'+pbarHtml(res[i].download_progress)+'</div></td>'
+              +'<td data-field="download_speed" data-key="1-0-3"><div class="layui-table-cell laytable-cell-1-0-3">'+esc(res[i].download_speed)+'</div></td>'
+              +'<td data-field="status" data-key="1-0-4"><div class="layui-table-cell laytable-cell-1-0-4"><span class="st-badge st-run">下载中</span></div></td></tr>');
           }
         }
         tb.find('tr').each(function(){var idx=$(this).attr('data-index');if(idx&&!ids[idx])$(this).remove();});
@@ -410,9 +493,13 @@ layui.use(['table','element'],function(){
       }});
     $.ajax({url:'get_download_status',type:'get',dataType:'json',
       success:function(r){document.getElementById('download_speed_title').textContent=r.download_speed;}});
-    // 检查下载完成状态
+    // 统计概览 + 完成状态
     $.ajax({url:'get_completion_status',type:'get',dataType:'json',
       success:function(r){
+        document.getElementById('st-active').textContent=r.active||0;
+        document.getElementById('st-finished').textContent=r.finished||0;
+        document.getElementById('st-failed').textContent=r.failed||0;
+        document.getElementById('st-total').textContent=r.total||0;
         var badge=document.getElementById('dl-done-badge');
         if(r.done&&r.total>0){badge.style.display='inline-flex';badge.textContent='✓ 全部完成 ('+r.total+'条)';}
         else{badge.style.display='none';}

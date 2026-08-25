@@ -255,11 +255,10 @@ def index():
 @login_required
 def get_download_speed():
     """Get download speed"""
-    return (
-        '{ "download_speed" : "'
-        + format_byte(get_total_download_speed())
-        + '/s" , "upload_speed" : "0.00 B/s" } '
-    )
+    return jsonify({
+        "download_speed": format_byte(get_total_download_speed()) + "/s",
+        "upload_speed": "0.00 B/s",
+    })
 
 
 @_flask_app.route("/set_download_state", methods=["POST"])
@@ -288,18 +287,31 @@ def get_app_version():
 @_flask_app.route("/get_completion_status")
 @login_required
 def web_get_completion_status():
-    """返回下载完成状态"""
+    """返回下载完成状态（含失败/进行中统计）"""
     try:
         from media_downloader import _all_downloads_done
     except ImportError:
         _all_downloads_done = False
+    from module.app import DownloadStatus
+
     chat_count = len(_app.chat_download_config) if _app else 0
     total = sum(v.total_task for v in _app.chat_download_config.values()) if _app else 0
     finished = sum(v.finish_task for v in _app.chat_download_config.values()) if _app else 0
+    failed = 0
+    active = 0
+    if _app:
+        for v in _app.chat_download_config.values():
+            for st in v.node.download_status.values():
+                if st is DownloadStatus.FailedDownload:
+                    failed += 1
+                elif st is DownloadStatus.Downloading:
+                    active += 1
     return jsonify({
         "done": bool(_all_downloads_done) and chat_count > 0,
         "total": total,
         "finished": finished,
+        "failed": failed,
+        "active": active,
         "chat_count": chat_count,
     })
 
@@ -333,9 +345,28 @@ def get_download_list():
                 "download_progress": progress,
                 "download_speed": format_byte(value.get("download_speed") or 0) + "/s",
                 "save_path": (value.get("file_name") or "").replace("\\", "/"),
+                "ftype": _guess_ftype(value.get("file_name") or ""),
             })
 
     return jsonify(items)
+
+
+def _guess_ftype(file_name: str) -> str:
+    """从文件名猜测媒体类型（用于前端显示类型图标）"""
+    ext = os.path.splitext(file_name)[1].lower()
+    if ext in (".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".webm", ".m4v", ".3gp"):
+        return "video"
+    if ext in (".mp3", ".wav", ".flac", ".aac", ".ogg", ".wma", ".m4a", ".opus"):
+        return "audio"
+    if ext in (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg", ".heic", ".tiff", ".tif"):
+        return "photo"
+    if ext in (".zip", ".rar", ".7z", ".tar", ".gz", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".epub", ".mobi"):
+        return "document"
+    if ext in (".ogg", ".oga", ".opus"):
+        return "voice"
+    if ext in (".gif", ".webm"):
+        return "animation"
+    return "unknown"
 
 
 # ────────────────────────────────────────────────────────
