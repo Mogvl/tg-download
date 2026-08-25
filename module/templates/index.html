@@ -96,9 +96,10 @@ function pbarHtml(pct){
     .log-list tbody tr:last-child td { border-bottom:none; }
     .log-list tbody tr:hover { background:rgba(203,180,236,.06); }
     .log-list td.log-fname { word-break:break-all; }
-    .log-list .st-ok { color:#6db88a; font-weight:600; }
-    .log-list .st-fail { color:#c45a5a; font-weight:600; }
-    .log-list .st-skip { color:var(--ink-3); font-weight:600; }
+    .st-ok { color:#6db88a; font-weight:600; }
+    .st-fail { color:#c45a5a; font-weight:600; }
+    .st-skip { color:var(--ink-3); font-weight:600; }
+    .log-fname { word-break:break-all; }
     .log-list::-webkit-scrollbar { width:5px; }
     .log-list::-webkit-scrollbar-thumb { background:rgba(203,180,236,.3); border-radius:3px; }
     /* 进度条：加高+深色可读 */
@@ -306,7 +307,7 @@ function pbarHtml(pct){
       <button onclick="hClear()" style="background:none;border:1px solid var(--hairline);color:var(--ink-3);font-size:12px">清空</button>
     </div>
     <table class="ht"><thead><tr>
-      <th style="width:12%">频道</th><th style="width:32%">文件名</th><th style="width:10%">大小</th><th style="width:10%">类型</th><th style="width:18%">时间</th><th style="width:18%">路径</th>
+      <th>下载时间</th><th>下载格式</th><th>状态</th><th>频道上传时间</th><th>文件名称</th>
     </tr></thead><tbody id="h-body"></tbody></table>
     <div class="hp">
       <button id="h-prev" onclick="hPage(-1)">‹</button>
@@ -637,9 +638,12 @@ function hLoad(){
   document.getElementById('h-prev').disabled=_hPg<=1;
   document.getElementById('h-next').disabled=_hPg>=pg;
   var tb=document.getElementById('h-body');tb.innerHTML='';
-  if(!d.files.length){tb.innerHTML='<tr><td colspan="6" class="empty">暂无文件</td></tr>';return;}
+  if(!d.files.length){tb.innerHTML='<tr><td colspan="5" class="empty">暂无文件</td></tr>';return;}
   d.files.forEach(function(f){
-    tb.innerHTML+='<tr><td style="color:var(--ink-3);font-size:12px">'+esc(f.chat_id)+'</td><td>'+esc(f.name)+'</td><td>'+esc(f.size_str)+'</td><td style="color:var(--ink-3);font-size:12px">'+esc(f.media_type||'-')+'</td><td style="color:var(--ink-3)">'+esc(f.mtime_str)+'</td><td style="color:var(--ink-3);font-size:12px">'+esc(f.path)+'</td></tr>';
+    var ext=(f.name.split('.').pop()||'').toUpperCase();
+    var st=f.status==='failed'?'<span class="st-fail">失败</span>':f.status==='skip'?'<span class="st-skip">跳过</span>':'<span class="st-ok">成功</span>';
+    var up=f.upload_time_str||'-';
+    tb.innerHTML+='<tr><td>'+esc(f.mtime_str)+'</td><td>'+esc(ext)+'</td><td>'+st+'</td><td>'+esc(up)+'</td><td class="log-fname">'+esc(f.name)+'</td></tr>';
   });
 }
 function hPage(d){
