@@ -49,9 +49,9 @@
     .cc { display:flex; flex-wrap:nowrap; align-items:center; gap:8px; padding:8px 12px; margin-bottom:6px; border-radius:10px; background:rgba(255,255,255,.35); border:1px solid var(--hairline); }
     .cc input { flex:1; height:32px; border:1px solid var(--hairline); border-radius:8px; padding:0 10px; font-size:12.5px; background:rgba(255,255,255,.5); color:var(--ink); outline:none; }
     .cc input:focus { border-color:var(--mist-violet); }
-    .cc .cid { flex:0 1 160px; min-width:100px; }
-    .cc .clr { flex:0 1 90px; min-width:80px; }
-    .cc .cnote { flex:1 1 160px; min-width:100px; }
+    .cc .cid { flex:0 1 120px; min-width:90px; }
+    .cc .clr { flex:0 0 160px; min-width:160px; }
+    .cc .cnote { flex:1 1 120px; min-width:80px; }
     .cc .x { width:26px; height:26px; border:none; border-radius:7px; cursor:pointer; background:rgba(239,68,68,.06); color:#d4748a; font-size:13px; display:flex; align-items:center; justify-content:center; }
     .cc .x:hover { background:rgba(239,68,68,.12); }
     .cc .mv { width:26px; height:26px; border:none; border-radius:7px; cursor:pointer; background:rgba(178,138,222,.08); color:#9b7bc8; font-size:13px; display:flex; align-items:center; justify-content:center; }
@@ -611,7 +611,7 @@ function addChat(ch){
   var clr=esc(ch.last_read_message_id||0);
   var nte=esc(ch.note||'');
   d.innerHTML='<input class="cid" placeholder="chat_id（me / @channel / -100xxx）" value="'+cid+'">'
-    +'<input class="clr" type="number" placeholder="last_read_msg_id" value="'+clr+'" style="max-width:140px">'
+    +'<input class="clr" type="number" placeholder="last_read_msg_id" value="'+clr+'" style="max-width:160px">'
     +'<input class="cnote" type="text" placeholder="备注（可选）" value="'+nte+'" style="flex:1;min-width:120px">'
     +'<button class="mv" onclick="moveChat(this,1)" title="上移">↑</button>'
     +'<button class="mv" onclick="moveChat(this,-1)" title="下移">↓</button>'
