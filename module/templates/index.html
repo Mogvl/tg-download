@@ -57,6 +57,8 @@ function pbarHtml(pct){
     .cc input:focus { border-color:var(--mist-violet); }
     .cc .x { width:26px; height:26px; border:none; border-radius:7px; cursor:pointer; background:rgba(239,68,68,.06); color:#d4748a; font-size:13px; display:flex; align-items:center; justify-content:center; }
     .cc .x:hover { background:rgba(239,68,68,.12); }
+    .cc .mv { width:26px; height:26px; border:none; border-radius:7px; cursor:pointer; background:rgba(178,138,222,.08); color:#9b7bc8; font-size:13px; display:flex; align-items:center; justify-content:center; }
+    .cc .mv:hover { background:rgba(178,138,222,.18); }
     /* toggle switch */
     .switch { position:relative; display:inline-block; width:46px; height:26px; margin-top:6px; }
     .switch input { opacity:0; width:0; height:0; }
@@ -509,8 +511,20 @@ function addChat(ch){
   var d=document.createElement('div');d.className='cc';
   d.innerHTML='<input class="cid" placeholder="chat_id（me / @channel / -100xxx）" value="'+(ch.chat_id||'')+'">'
     +'<input class="clr" type="number" placeholder="last_read_msg_id" value="'+(ch.last_read_message_id||0)+'" style="max-width:160px">'
+    +'<button class="mv" onclick="moveChat(this,1)" title="上移">↑</button>'
+    +'<button class="mv" onclick="moveChat(this,-1)" title="下移">↓</button>'
     +'<button class="x" onclick="this.parentNode.remove()">×</button>';
   document.getElementById('c-chats').appendChild(d);
+}
+function moveChat(btn,dir){
+  var el=btn.parentNode;
+  if(dir>0){ // 上移：插到前一个兄弟之前
+    var prev=el.previousElementSibling;
+    if(prev) el.parentNode.insertBefore(el,prev);
+  }else{ // 下移：插到后一个兄弟之后
+    var next=el.nextElementSibling;
+    if(next) el.parentNode.insertBefore(next,el);
+  }
 }
 function saveCfg(restart){
   try{
