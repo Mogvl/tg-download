@@ -336,14 +336,14 @@ div[lay-id="already_download_list"] {
   background: transparent !important;
   border: none !important;
   border-bottom: 2px solid rgba(122,96,158,0.12) !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
   font-weight: 600 !important;
-  letter-spacing: 0.14em !important;
+  letter-spacing: 0.12em !important;
   color: var(--ink-3) !important;
   text-transform: uppercase !important;
-  padding: 0 16px !important;
-  height: 42px !important;
-  line-height: 42px !important;
+  padding: 0 10px !important;
+  height: 34px !important;
+  line-height: 34px !important;
 }
 /* 覆盖 layui 注入的内联 style 标签效果 */
 .layui-table-view .layui-table-header style + .layui-table,
@@ -360,7 +360,7 @@ div[lay-id="already_download_list"] {
 .layui-table-view .layui-table-body tr,
 .layui-table-view .layui-table-body .layui-table tr {
   transition: background 0.2s var(--ease) !important;
-  height: 44px !important;
+  height: 36px !important;
 }
 .layui-table-view .layui-table-body tr:hover,
 .layui-table-view .layui-table-body tr.layui-table-hover,
@@ -374,11 +374,11 @@ div[lay-id="already_download_list"] {
 .layui-table-view .layui-table-body .layui-table-cell {
   border: none !important;
   border-bottom: 1px solid rgba(122,96,158,0.06) !important;
-  padding: 0 16px !important;
-  font-size: 13px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
   color: var(--ink) !important;
   font-variant-numeric: tabular-nums !important;
-  line-height: 44px !important;
+  line-height: 36px !important;
   height: auto !important;
   max-height: none !important;
 }
@@ -415,7 +415,7 @@ div[lay-id] .layui-table-view[lay-skin="nob"] {
 .layui-table .layui-progress {
   border-radius: 999px !important;
   background: rgba(122,96,158,0.07) !important;
-  height: 7px !important;
+  height: 5px !important;
   overflow: hidden !important;
   margin: 0 !important;
 }
@@ -428,7 +428,7 @@ div[lay-id] .layui-table-view[lay-skin="nob"] {
 }
 .layui-progress-big .layui-progress-bar,
 .layui-table .layui-progress-bar {
-  height: 7px !important;
+  height: 5px !important;
   top: 0 !important;
   margin-top: 0 !important;
 }

@@ -99,16 +99,16 @@
     .log-fname { word-break:break-all; }
     .log-list::-webkit-scrollbar { width:5px; }
     .log-list::-webkit-scrollbar-thumb { background:rgba(203,180,236,.3); border-radius:3px; }
-    /* 进度条：加高+深色可读 */
-    .pbar-wrap { display:flex; align-items:center; gap:10px; width:100%; }
-    .pbar { flex:1; height:12px; border-radius:999px; background:rgba(122,96,158,.14); overflow:hidden; position:relative; }
+    /* 进度条 */
+    .pbar-wrap { display:flex; align-items:center; gap:6px; width:100%; }
+    .pbar { flex:1; height:8px; border-radius:999px; background:rgba(122,96,158,.14); overflow:hidden; position:relative; }
     .pbar-fill { height:100%; border-radius:999px; transition:width .5s var(--ease); position:relative; }
     .pbar-fill::after { content:""; position:absolute; top:0; left:0; right:0; height:45%;
       border-radius:999px 999px 0 0; background:linear-gradient(180deg,rgba(255,255,255,.35),transparent); }
     .pbar-violet { background:linear-gradient(90deg,#a78bfa,#8b5cf6); box-shadow:0 1px 6px rgba(139,92,246,.35); }
     .pbar-pink   { background:linear-gradient(90deg,#f472b6,#ec4899); box-shadow:0 1px 6px rgba(236,72,153,.30); }
     .pbar-green  { background:linear-gradient(90deg,#34d399,#10b981); box-shadow:0 1px 6px rgba(16,185,129,.28); }
-    .pbar-pct { font-size:12.5px; font-weight:600; color:var(--ink); min-width:46px; text-align:right;
+    .pbar-pct { font-size:11px; font-weight:600; color:var(--ink); min-width:36px; text-align:right;
       font-variant-numeric:tabular-nums; }
     /* ── 速度胶囊（左上角） ── */
     .speed-pill {
@@ -451,14 +451,14 @@ layui.use(['table','element'],function(){
 
   table.render({elem:'#download_list',data:[],height:'full-320',limit:10000,
     cols:[[
-      {field:'filename',title:'文件',templet:function(d){
+      {field:'filename',title:'文件',minWidth:200,templet:function(d){
         return '<span class="ftype ftype-'+d.ftype+'">'+ftypeIcon(d.ftype)+'</span><span class="fname">'+esc(d.filename)+'</span>';
       }},
-      {field:'total_size',title:'大小',width:90},
-      {field:'download_progress',title:'进度',templet:function(d){
+      {field:'total_size',title:'大小',width:80},
+      {field:'download_progress',title:'进度',width:120,templet:function(d){
         return pbarHtml(d.download_progress);
       }},
-      {field:'download_speed',title:'速度',width:100},
+      {field:'download_speed',title:'速度',width:90},
       {field:'status',title:'状态',width:80,templet:function(d){
         var p=d.download_progress;
         if(p>=100)return '<span class="st-badge st-done">已完成</span>';
