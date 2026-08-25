@@ -37,6 +37,7 @@ def parse_args():
     p.add_argument("--db", default=None, help="sqlite 路径（默认 <root>/downloads.sqlite3）")
     p.add_argument("--apply", action="store_true", help="真正执行（默认仅预览）")
     p.add_argument("--verbose", action="store_true", help="打印每条详情")
+    p.add_argument("--limit", type=int, default=0, help="只处理前 N 条（安全试跑，0=全部）")
     return p.parse_args()
 
 
@@ -103,7 +104,9 @@ def main():
         "SELECT id, chat_id, message_id, file_name, file_path, publish_time "
         "FROM download_history ORDER BY id"
     ).fetchall()
-    print(f"共 {len(rows)} 条历史记录，数据库: {db_path}")
+    if args.limit and args.limit > 0:
+        rows = rows[:args.limit]
+    print(f"共 {len(rows)} 条历史记录（limit={args.limit or '全部'}），数据库: {db_path}")
     print(f"下载根目录: {root}\n")
 
     # 预统计
