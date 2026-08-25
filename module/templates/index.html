@@ -277,7 +277,7 @@ function pbarHtml(pct){
           <th>下载时间</th>
           <th>下载格式</th>
           <th>状态</th>
-          <th>频道上传时间</th>
+          <th>发布时间</th>
           <th>文件名称</th>
         </tr>
       </thead>
@@ -307,7 +307,7 @@ function pbarHtml(pct){
       <button onclick="hClear()" style="background:none;border:1px solid var(--hairline);color:var(--ink-3);font-size:12px">清空</button>
     </div>
     <table class="ht"><thead><tr>
-      <th>下载时间</th><th>下载格式</th><th>状态</th><th>频道上传时间</th><th>文件名称</th>
+      <th>下载时间</th><th>下载格式</th><th>状态</th><th>发布时间</th><th>文件名称</th>
     </tr></thead><tbody id="h-body"></tbody></table>
     <div class="hp">
       <button id="h-prev" onclick="hPage(-1)">‹</button>
@@ -602,7 +602,7 @@ function renderLogTable(){
   d.files.forEach(function(f){
     var ext=(f.name.split('.').pop()||'').toUpperCase();
     var st=f.status==='failed'?'<span class="st-fail">失败</span>':f.status==='skip'?'<span class="st-skip">跳过</span>':'<span class="st-ok">成功</span>';
-    var up=f.upload_time_str||'-';
+    var up=f.publish_time_str||'-';
     html+='<tr>'
       +'<td>'+esc(f.mtime_str)+'</td>'
       +'<td>'+esc(ext)+'</td>'
@@ -645,7 +645,7 @@ function hLoad(){
   d.files.forEach(function(f){
     var ext=(f.name.split('.').pop()||'').toUpperCase();
     var st=f.status==='failed'?'<span class="st-fail">失败</span>':f.status==='skip'?'<span class="st-skip">跳过</span>':'<span class="st-ok">成功</span>';
-    var up=f.upload_time_str||'-';
+    var up=f.publish_time_str||'-';
     tb.innerHTML+='<tr><td>'+esc(f.mtime_str)+'</td><td>'+esc(ext)+'</td><td>'+st+'</td><td>'+esc(up)+'</td><td class="log-fname">'+esc(f.name)+'</td></tr>';
   });
 }
