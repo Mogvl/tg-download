@@ -58,6 +58,34 @@ def dir_publish_str(file_path: str) -> str:
     return None
 
 
+def _map_to_host(old_path: str, root: str) -> str:
+    """把记录里的路径映射到宿主机磁盘路径。
+
+    兼容两种存储形式：
+    1. 容器内绝对路径（如 /app/downloads/频道A/2020_08/x.jpg）→ 替换前缀为 root
+    2. 相对路径（如 频道A/2020_08/x.jpg）→ 拼到 root 下
+    """
+    p = old_path.replace("\\", "/")
+    # 容器内路径映射（docker-compose 里 /app/downloads -> 宿主下载目录）
+    for prefix in ("/app/downloads/", "/app/downloads"):
+        if p.startswith(prefix):
+            rest = p[len(prefix):].lstrip("/")
+            return os.path.join(root, rest)
+    if p.startswith("/"):
+        return p  # 其它绝对路径原样使用
+    return os.path.join(root, p)
+
+
+def _to_container(new_path: str, root: str) -> str:
+    """把宿主重命名后的路径转回容器内路径（用于更新数据库）"""
+    n = os.path.normpath(new_path).replace("\\", "/")
+    r = os.path.normpath(root).replace("\\", "/")
+    if n.startswith(r + "/"):
+        rel = n[len(r) + 1:]
+        return "/app/downloads/" + rel
+    return n
+
+
 def main():
     args = parse_args()
     db_path = args.db or os.path.join(args.root, "downloads.sqlite3")
@@ -88,11 +116,12 @@ def main():
         old_path = r["file_path"] or ""
         publish_time = r["publish_time"]
 
-        # 定位磁盘文件
-        if os.path.isabs(old_path):
-            disk_path = old_path
-        else:
-            disk_path = os.path.join(root, old_path)
+        # 跳过数据库临时文件被误补录的记录
+        if old_name.endswith((".sqlite3", "-shm", "-wal")) or old_path.endswith((".sqlite3", "-shm", "-wal")):
+            continue
+
+        # 定位磁盘文件：把容器内路径 /app/downloads 映射到宿主 root
+        disk_path = _map_to_host(old_path, root)
         if not os.path.isfile(disk_path):
             stats["skip_notfound"] += 1
             if args.verbose:
@@ -149,11 +178,8 @@ def main():
     for rec_id, disk_path, final_path, final_name, _ts in planned:
         try:
             os.rename(disk_path, final_path)
-            # 更新数据库：file_name 与 file_path（保持相对/绝对形式一致）
-            if os.path.isabs(final_path):
-                new_fp = final_path
-            else:
-                new_fp = os.path.relpath(final_path, root)
+            # 更新数据库：file_name 与 file_path（存容器内路径，与下载器一致）
+            new_fp = _to_container(final_path, root)
             conn.execute(
                 "UPDATE download_history SET file_name=?, file_path=? WHERE id=?",
                 (final_name, new_fp, rec_id),
