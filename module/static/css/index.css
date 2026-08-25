@@ -86,17 +86,16 @@ body::after {
   box-sizing: border-box;
 }
 
-/* 实时速度（左上角） */
+/* 实时速度（面板顶部一行） */
 .dl-speed-top {
-  position: absolute;
-  top: 18px;
-  left: 28px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
   font-size: 12px;
   font-weight: 500;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
-  z-index: 3;
 }
 
 /* ---- 标签页 ---- */
