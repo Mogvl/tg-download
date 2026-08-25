@@ -7,7 +7,7 @@ import time
 
 logger = logging.getLogger("tdl.db")
 
-DB_PATH = os.path.join(os.path.abspath("."), "downloads.sqlite3")
+DB_PATH = os.path.join(os.path.abspath("."), "downloads", "downloads.sqlite3")
 _db_ok = False
 
 
@@ -19,6 +19,7 @@ def init_db():
     """建表（幂等）"""
     global _db_ok
     try:
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
         with _conn() as c:
             c.execute("""
                 CREATE TABLE IF NOT EXISTS download_history (
