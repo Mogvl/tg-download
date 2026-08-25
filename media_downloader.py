@@ -430,6 +430,7 @@ async def download_media(
                             file_path=file_name,
                             media_type=_type if _type else "",
                             status="skip",
+                            publish_time=message.date.timestamp() if message.date else None,
                         )
 
                         return DownloadStatus.SkipDownload, None
@@ -476,6 +477,7 @@ async def download_media(
                     file_size=media_size,
                     file_path=file_name,
                     media_type=_type if _type else "",
+                    publish_time=message.date.timestamp() if message.date else None,
                 )
                 return DownloadStatus.SuccessDownload, file_name
         except pyrogram.errors.exceptions.bad_request_400.BadRequest:
@@ -524,6 +526,7 @@ async def download_media(
             file_path=file_name,
             media_type=_type if _type else "",
             status="failed",
+            publish_time=message.date.timestamp() if message.date else None,
         )
     return DownloadStatus.FailedDownload, None
 

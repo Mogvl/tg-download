@@ -3,7 +3,6 @@
 import logging
 import os
 import secrets
-import sys
 import threading
 import time
 
@@ -392,24 +391,14 @@ def web_save_config():
             cfg["file_formats"][k] = [s.strip() for s in val.split(",") if s.strip()] or ["all"]
 
     _write_config(cfg)
-    # 保存并重启：写盘后主动退出进程，交由 docker（unless-stopped）重新拉起，
-    # 避免「写了 config 却没真正重启」的灰色状态导致新配置不生效、下载不触发。
-    # 注意：必须在退出前把 restart_program 清回 False，否则 docker 重启后会陷入
-    # 重启死循环（进程内 restart_program 一被读就立即 break 退出）。
-    if data.get("restart_program"):
-        log.info("收到「保存并重启」，写盘完成，即将退出进程以触发容器重启...")
-
-        def _delayed_exit():
-            time.sleep(0.5)
-            try:
-                # 清掉重启标记再写盘，避免 docker 重启后陷入重启死循环
-                cfg["restart_program"] = False
-                _write_config(cfg)
-            except Exception:
-                pass
-            os._exit(0)
-
-        threading.Thread(target=_delayed_exit, daemon=True).start()
+    # 保存并重启：写盘后设置内存 restart_program 标记，主循环检测到后优雅退出
+    # （走 main() 的 finally → app.update_config() 回写 last_read_message_id 游标），
+    # 再由 docker（unless-stopped）重新拉起。
+    # 注意：不能用 os._exit 直接杀进程——那会绕过 finally，导致游标不回写、
+    # 重启后从旧位置重扫已下载文件（表现为大量「已下载,跳过下载」）。
+    if data.get("restart_program") and _app:
+        _app.restart_program = True
+        log.info("收到「保存并重启」，已设置 restart_program，进程将优雅退出以触发容器重启...")
         return jsonify({"ok": True, "msg": "配置已保存，容器即将重启…"})
     return jsonify({"ok": True, "msg": "配置已保存，重启容器后生效"})
 
@@ -460,7 +449,7 @@ def web_get_history():
 
     files = []
     for r in records:
-        up_ts = r.get("upload_telegram_time") or 0
+        pub_ts = r.get("publish_time") or 0
         files.append({
             "name": r["file_name"],
             "path": r.get("file_path", ""),
@@ -471,8 +460,8 @@ def web_get_history():
             "chat_id": r.get("chat_id", ""),
             "media_type": r.get("media_type", ""),
             "status": r.get("status") or "success",
-            "upload_time": up_ts,
-            "upload_time_str": time.strftime("%Y-%m-%d %H:%M", time.localtime(up_ts)) if up_ts else "",
+            "publish_time": pub_ts,
+            "publish_time_str": time.strftime("%Y-%m-%d %H:%M", time.localtime(pub_ts)) if pub_ts else "",
         })
 
     return jsonify({"files": files, "total": total})

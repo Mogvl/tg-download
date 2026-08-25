@@ -32,11 +32,12 @@ def init_db():
                     media_type TEXT,
                     download_timestamp REAL NOT NULL,
                     status TEXT,
-                    upload_telegram_time REAL
+                    upload_telegram_time REAL,
+                    publish_time REAL
                 )
             """)
             # 兼容旧库：新增字段（sqlite 不支持 ADD COLUMN IF NOT EXISTS）
-            for col, typ in (("status", "TEXT"), ("upload_telegram_time", "REAL")):
+            for col, typ in (("status", "TEXT"), ("upload_telegram_time", "REAL"), ("publish_time", "REAL")):
                 try:
                     c.execute(f"ALTER TABLE download_history ADD COLUMN {col} {typ}")
                 except Exception:
@@ -48,15 +49,15 @@ def init_db():
         logger.error(f"数据库初始化失败: {e}")
 
 
-def record_download(chat_id, message_id, file_name, file_size, file_path="", media_type="", status="success"):
+def record_download(chat_id, message_id, file_name, file_size, file_path="", media_type="", status="success", publish_time=None):
     """记录一次下载（status: success / failed / skip）"""
     if not _db_ok:
         return
     try:
         with _conn() as c:
             c.execute(
-                "INSERT INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp,status) VALUES (?,?,?,?,?,?,?,?)",
-                (str(chat_id), message_id, file_name, file_size, file_path, media_type, time.time(), status),
+                "INSERT INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp,status,publish_time) VALUES (?,?,?,?,?,?,?,?,?)",
+                (str(chat_id), message_id, file_name, file_size, file_path, media_type, time.time(), status, publish_time),
             )
     except Exception as e:
         logger.error(f"记录下载失败 {file_name}: {e}")
