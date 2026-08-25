@@ -829,18 +829,34 @@ class Application:
     def update_config(self, immediate: bool = True):
         """update config
 
+        退出/保存时回写运行时进度。为避免覆盖 Web 界面刚保存的新配置，
+        先从磁盘重新读取最新 config.yaml 作为基础，再只更新进度字段。
+        若磁盘文件不可读（异常场景），退回使用内存配置。
+
         Parameters
         ----------
         immediate: bool
             If update config immediate,default True
         """
+        # 从磁盘重读最新配置，防止用内存旧配置覆盖 Web 端新保存的配置
+        try:
+            with open(
+                os.path.join(os.path.abspath("."), self.config_file),
+                encoding="utf-8",
+            ) as f:
+                disk_config = _yaml.load(f.read())
+                if disk_config:
+                    self.config = disk_config
+        except Exception:
+            pass  # 磁盘读取失败时沿用内存配置
+
         # TODO: fix this not exist chat
         if not self.app_data.get("chat") and self.config.get("chat"):
             self.app_data["chat"] = [
                 {"chat_id": i} for i in range(0, len(self.config["chat"]))
             ]
+        # 按 chat_id 匹配回写进度（而非索引），频道被 Web 端增删改后不会错位
         idx = 0
-        # pylint: disable = R1733
         for key, value in self.chat_download_config.items():
             # pylint: disable = W0201
             unfinished_ids = set(value.ids_to_retry)
@@ -864,9 +880,13 @@ class Application:
                 self.app_data["chat"].append({})
 
             if value.finish_task:
-                self.config["chat"][idx]["last_read_message_id"] = (
-                    value.last_read_message_id + 1
-                )
+                # 仅当该频道仍存在于磁盘最新配置中才回写进度
+                for _chat_item in self.config.get("chat", []):
+                    if _chat_item.get("chat_id") == key:
+                        _chat_item["last_read_message_id"] = (
+                            value.last_read_message_id + 1
+                        )
+                        break
 
             self.app_data["chat"][idx]["chat_id"] = key
             self.app_data["chat"][idx]["ids_to_retry"] = value.ids_to_retry
