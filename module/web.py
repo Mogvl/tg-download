@@ -3,6 +3,7 @@
 import logging
 import os
 import secrets
+import sys
 import threading
 import time
 
@@ -391,6 +392,25 @@ def web_save_config():
             cfg["file_formats"][k] = [s.strip() for s in val.split(",") if s.strip()] or ["all"]
 
     _write_config(cfg)
+    # 保存并重启：写盘后主动退出进程，交由 docker（unless-stopped）重新拉起，
+    # 避免「写了 config 却没真正重启」的灰色状态导致新配置不生效、下载不触发。
+    # 注意：必须在退出前把 restart_program 清回 False，否则 docker 重启后会陷入
+    # 重启死循环（进程内 restart_program 一被读就立即 break 退出）。
+    if data.get("restart_program"):
+        log.info("收到「保存并重启」，写盘完成，即将退出进程以触发容器重启...")
+
+        def _delayed_exit():
+            time.sleep(0.5)
+            try:
+                # 清掉重启标记再写盘，避免 docker 重启后陷入重启死循环
+                cfg["restart_program"] = False
+                _write_config(cfg)
+            except Exception:
+                pass
+            os._exit(0)
+
+        threading.Thread(target=_delayed_exit, daemon=True).start()
+        return jsonify({"ok": True, "msg": "配置已保存，容器即将重启…"})
     return jsonify({"ok": True, "msg": "配置已保存，重启容器后生效"})
 
 
