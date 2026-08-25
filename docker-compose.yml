@@ -32,4 +32,11 @@ services:
 
       # 如需 rclone 上传云盘，取消下行注释并放入 rclone 配置
       # - ./rclone/:/root/.config/rclone/
+    healthcheck:
+      # 探测无需登录的版本接口，进程存活且 Web 可达时 healthy
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/get_app_version"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped

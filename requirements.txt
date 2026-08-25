@@ -3,7 +3,7 @@
 https://github.com/tangyoha/pyrogram/archive/51a100c5e2745471ee89c1dd96dd69962973108b.zip
 PyYAML==6.0.2
 rich==12.5.1
-PyTgCrypto>=1.2.11
+PyTgCrypto==1.2.11
 loguru==0.6.0
 # aligo==5.4.0
 Werkzeug==3.0.6

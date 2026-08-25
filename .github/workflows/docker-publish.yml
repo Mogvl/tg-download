@@ -24,6 +24,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set up QEMU (multi-arch)
+        uses: docker/setup-qemu-action@v3
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -35,7 +38,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64 # 绿联 NAS x86；如需 arm64 在此追加
+          # 绿联 NAS 多为 x86_64；同时支持 arm64（部分 ARM NAS/树莓派）
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.IMAGE }}:latest
@@ -43,10 +47,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 失败时把错误摘要写进 check 注解（匿名可读，无需 admin 权限拉日志）
-      - name: Surface build error as annotation
+      # 失败时提示查看 run 日志（避免重新 build 一次浪费额度）
+      - name: Surface build failure
         if: failure()
-        run: |
-          ERR=$(docker buildx build --platform linux/amd64 --progress=plain . 2>&1 \
-            | grep -Ei "ERROR|denied|not found" | tail -n 3 | tr '\n' ' ' | head -c 700)
-          echo "::error title=Docker build error::${ERR:-see-run-logs}"
+        run: echo "::error title=Docker build failed::查看上方步骤日志定位错误"
