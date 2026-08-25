@@ -81,6 +81,17 @@ def run_web_server(app: Application):
 
 
 # pylint: disable = W0603
+def _login_enabled() -> bool:
+    """登录开关是否开启（运行时实时从内存配置读取）"""
+    return bool(_app and _app.web_login_enabled)
+
+
+def _current_secret() -> str:
+    """实时从磁盘读取 web_login_secret，避免依赖启动时的全局快照"""
+    cfg = _read_config()
+    return str(cfg.get("web_login_secret", "") or "")
+
+
 def init_web(app: Application):
     """
     Set the value of the users variable.
@@ -93,10 +104,12 @@ def init_web(app: Application):
     """
     global web_login_users, _app
     _app = app
-    if app.web_login_secret:
-        _flask_app.secret_key = app.web_login_secret
-        web_login_users = {"root": app.web_login_secret}
+    if _login_enabled():
+        # 开关开启：必须输密码（密码来自 web_login_secret，缺失则任何密码都拒绝）
+        _flask_app.secret_key = app.web_login_secret or secrets.token_urlsafe(32)
+        web_login_users = {"root": _current_secret()}
     else:
+        # 开关关闭：免登录直进主页
         _flask_app.config["LOGIN_DISABLED"] = True
     if app.debug_web:
         threading.Thread(target=run_web_server, args=(app,)).start()
@@ -133,11 +146,17 @@ def login():
             return jsonify({"code": "0"})
 
         password = web_login_form["password"]
-        if username in web_login_users and web_login_users[username] == password:
+        # 开关未开启时不应出现登录页；兜底拒绝
+        if not _login_enabled():
+            return jsonify({"code": "0"})
+        secret = _current_secret()
+        # 开了开关却没设密码：拒绝任何密码，避免裸奔
+        if not secret:
+            return jsonify({"code": "0"})
+        if password == secret:
             user = User()
             login_user(user)
             return jsonify({"code": "1"})
-
         return jsonify({"code": "0"})
 
     return render_template("login.html")
@@ -298,6 +317,7 @@ def web_get_config():
     safe["max_download_task"] = cfg.get("max_download_task", 5)
     safe["language"] = cfg.get("language", "EN")
     safe["web_login_secret"] = cfg.get("web_login_secret", "")
+    safe["web_login_enabled"] = bool(cfg.get("web_login_enabled", False))
     safe["hide_file_name"] = cfg.get("hide_file_name", False)
     safe["date_format"] = cfg.get("date_format", "%Y_%m")
     safe["chat"] = cfg.get("chat", [])
@@ -339,6 +359,8 @@ def web_save_config():
         cfg["language"] = data["language"]
     if "web_login_secret" in data:
         cfg["web_login_secret"] = data["web_login_secret"]
+    if "web_login_enabled" in data:
+        cfg["web_login_enabled"] = bool(data["web_login_enabled"])
     if "hide_file_name" in data:
         cfg["hide_file_name"] = data["hide_file_name"]
     if "date_format" in data:

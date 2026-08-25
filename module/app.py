@@ -401,6 +401,8 @@ class Application:
         self.language = Language.EN
         self.after_upload_telegram_delete: bool = True
         self.web_login_secret: str = ""
+        # 显式登录开关：true 必须输密码，false/缺失则免登录直进主页
+        self.web_login_enabled: bool = False
         self.debug_web: bool = False
         self.log_level: str = "INFO"
         self.start_timeout: int = 60
@@ -523,6 +525,8 @@ class Application:
         self.web_login_secret = str(
             _config.get("web_login_secret", self.web_login_secret)
         )
+        # 显式登录开关（缺失或为空时视为关闭，免登录直进主页）
+        self.web_login_enabled = bool(_config.get("web_login_enabled", False))
         self.debug_web = _config.get("debug_web", self.debug_web)
         self.log_level = _config.get("log_level", self.log_level)
 
