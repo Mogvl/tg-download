@@ -105,8 +105,8 @@ services:
       #   cp config.example.yaml config.yaml  并填入 api_id / api_hash
       #   cp data.example.yaml data.yaml
       # 注意：config.yaml / data.yaml 文件必须存在，否则 Docker 会把它们挂载成目录导致启动失败
-      - ./config.yaml:/app/config.yaml
-      - ./data.yaml:/app/data.yaml
+      - /volume1/docker/tg-download/config.yaml:/app/config.yaml
+      - /volume1/docker/tg-download/data.yaml:/app/data.yaml
 
       # 下载文件存储目录（持久化）
       - /volume1/dockerdn/tg:/app/downloads
@@ -123,7 +123,7 @@ services:
     restart: unless-stopped
 ```
 
-### 部署前准备（必做）
+### 部署前准备### 部署前准备（必做）
 
 容器启动时会读取 `config.yaml`，**必须先准备好配置文件**，否则会启动失败：
 
