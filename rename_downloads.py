@@ -128,8 +128,9 @@ def main():
                 print(f"[跳过·找不到文件] {disk_path}")
             continue
 
-        # 计算新名称
-        orig = strip_mid(old_name)
+        # 计算新名称（file_name 字段可能是完整路径，先取纯文件名）
+        old_base = os.path.basename(old_name.replace("\\", "/"))
+        orig = strip_mid(old_base)
         if publish_time:
             ts = time.strftime("%Y-%m-%d_%H-%M", time.localtime(publish_time))
         else:
@@ -139,7 +140,7 @@ def main():
                 print(f"[跳过·无法确定发布时间] {disk_path}")
                 continue
         new_name = f"{ts} - {orig}"
-        if new_name == old_name:
+        if new_name == old_base:
             stats["skip_noneed"] += 1
             continue
 
