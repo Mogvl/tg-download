@@ -29,11 +29,13 @@ COPY --from=build /usr/bin/rclone /app/rclone/rclone
 # Copy app source code
 COPY . /app
 
-# 非 root 运行，降低安全风险
-RUN addgroup -S app && adduser -S app -G app \
-    && mkdir -p /app/downloads /app/sessions /app/log /app/temp \
-    && chown -R app:app /app
+# 预建运行时目录（挂载卷会覆盖，这里仅保证镜像内存在）
+RUN mkdir -p /app/downloads /app/sessions /app/log /app/temp
 
-USER app
+# 注意：保持以 root 运行。
+# config.yaml / data.yaml / sessions 等通过宿主机卷挂载进入容器，文件属主是宿主用户；
+# 若切到非 root 用户（USER app），容器用户对宿主挂载文件没有读写权限，
+# 启动即报 PermissionError: '/app/config.yaml'，导致 restart 无限重启循环。
+# （已实测验证，见 2026-08-25 19:39 日志）
 
 CMD ["python", "media_downloader.py"]
