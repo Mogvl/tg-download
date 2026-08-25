@@ -238,11 +238,11 @@
       <span id="log-n">加载中…</span>
       <div style="display:flex;gap:8px">
         <button class="log-toggle on" id="log-auto" onclick="logAutoToggle()">自动滚动</button>
-        <button class="log-toggle" id="log-mode" onclick="logModeToggle()">列表视图</button>
+        <button class="log-toggle on" id="log-mode" onclick="logModeToggle()">终端视图</button>
       </div>
     </div>
-    <div class="log-box" id="log-box"></div>
-    <div class="log-list" id="log-list" style="display:none"></div>
+    <div class="log-box" id="log-box" style="display:none"></div>
+    <div class="log-list" id="log-list"></div>
   </section>
 
   <!-- ═══════ 4. 历史 ═══════ -->
@@ -277,7 +277,7 @@
 <script src="static/layui/layui.js"></script>
 <script>
 /* ── 全局 ── */
-var _logAuto=true, _hPg=1, _hT=0, _logTmr=null, _logListMode=false;
+var _logAuto=true, _hPg=1, _hT=0, _logTmr=null, _logListMode=true;
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200);}
 
 /* ── 标签页切换 ── */
