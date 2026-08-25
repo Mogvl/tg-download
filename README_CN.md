@@ -97,7 +97,7 @@ services:
     container_name: tg-download
     ports:
       # Web UI 端口映射（外部端口:容器内 5000）
-      - "13087:5000"
+      - "14087:5000"
     environment:
       - TZ=Asia/Shanghai
     volumes:
@@ -109,7 +109,7 @@ services:
       - ./data.yaml:/app/data.yaml
 
       # 下载文件存储目录（持久化）
-      - ./downloads:/app/downloads
+      - /volume1/dockerdn/tg:/app/downloads
 
       # Telegram 登录会话（持久化，重启不丢失）
       - ./sessions:/app/sessions
@@ -152,7 +152,7 @@ mkdir -p downloads sessions log temp
    按提示输入手机号和验证码，登录成功后 `Ctrl+C` 退出（会话已保存在 `sessions/`）。
 
 4. 后台启动：`docker compose up -d`
-5. 浏览器访问 `http://<绿联 IP>:13087` 查看/控制下载进度。
+5. 浏览器访问 `http://<绿联 IP>:14087` 查看/控制下载进度。
    Web UI 仅用于查看下载进度与暂停/继续，不支持在网页里配置 api_id 或登录 Telegram；
    建议在 `config.yaml` 中设置 `web_login_secret` 作为界面登录密码。
 
