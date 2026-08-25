@@ -460,6 +460,7 @@ def web_get_history():
 
     files = []
     for r in records:
+        up_ts = r.get("upload_telegram_time") or 0
         files.append({
             "name": r["file_name"],
             "path": r.get("file_path", ""),
@@ -469,6 +470,9 @@ def web_get_history():
             "mtime_str": time.strftime("%Y-%m-%d %H:%M", time.localtime(r["download_timestamp"])),
             "chat_id": r.get("chat_id", ""),
             "media_type": r.get("media_type", ""),
+            "status": r.get("status") or "success",
+            "upload_time": up_ts,
+            "upload_time_str": time.strftime("%Y-%m-%d %H:%M", time.localtime(up_ts)) if up_ts else "",
         })
 
     return jsonify({"files": files, "total": total})

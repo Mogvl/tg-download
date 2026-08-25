@@ -429,6 +429,7 @@ async def download_media(
                             file_size=file_size or media_size,
                             file_path=file_name,
                             media_type=_type if _type else "",
+                            status="skip",
                         )
 
                         return DownloadStatus.SkipDownload, None
@@ -513,6 +514,17 @@ async def download_media(
             )
             break
 
+    # 记录失败下载到数据库（供 Web 日志列表「状态」列展示）
+    if db._db_ok:
+        db.record_download(
+            chat_id=node.chat_id,
+            message_id=message_id,
+            file_name=ui_file_name or f"{message_id}",
+            file_size=media_size,
+            file_path=file_name,
+            media_type=_type if _type else "",
+            status="failed",
+        )
     return DownloadStatus.FailedDownload, None
 
 

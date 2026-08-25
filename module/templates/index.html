@@ -90,19 +90,17 @@ function pbarHtml(pct){
     .log-box::-webkit-scrollbar { width:5px; }
     .log-box::-webkit-scrollbar-thumb { background:rgba(203,180,236,.3); border-radius:3px; }
     /* 日志列表 */
-    .log-list { max-height:480px; overflow-y:auto; border-radius:14px; border:1px solid rgba(122,96,158,.08); background:rgba(255,255,255,.3); }
+    .log-list { width:100%; max-height:480px; overflow-y:auto; border-collapse:collapse; border-radius:14px; border:1px solid rgba(122,96,158,.08); background:rgba(255,255,255,.3); font-size:12.5px; }
+    .log-list thead th { position:sticky; top:0; background:rgba(236,230,244,.95); color:var(--ink-2); font-size:11px; font-weight:600; letter-spacing:.08em; text-align:left; padding:10px 14px; border-bottom:1px solid rgba(122,96,158,.12); white-space:nowrap; }
+    .log-list tbody td { padding:8px 14px; border-bottom:1px solid rgba(122,96,158,.05); color:var(--ink); vertical-align:middle; }
+    .log-list tbody tr:last-child td { border-bottom:none; }
+    .log-list tbody tr:hover { background:rgba(203,180,236,.06); }
+    .log-list td.log-fname { word-break:break-all; }
+    .log-list .st-ok { color:#6db88a; font-weight:600; }
+    .log-list .st-fail { color:#c45a5a; font-weight:600; }
+    .log-list .st-skip { color:var(--ink-3); font-weight:600; }
     .log-list::-webkit-scrollbar { width:5px; }
     .log-list::-webkit-scrollbar-thumb { background:rgba(203,180,236,.3); border-radius:3px; }
-    .log-item { display:flex; gap:10px; padding:8px 16px; border-bottom:1px solid rgba(122,96,158,.05); font-size:12.5px; line-height:1.6; transition:background .15s; }
-    .log-item:last-child { border-bottom:none; }
-    .log-item:hover { background:rgba(203,180,236,.06); }
-    .log-time { color:var(--ink-3); font-family:"SF Mono","JetBrains Mono",monospace; font-size:11px; white-space:nowrap; min-width:70px; }
-    .log-level { font-weight:600; font-size:10px; letter-spacing:.08em; padding:1px 8px; border-radius:4px; white-space:nowrap; min-width:52px; text-align:center; }
-    .log-level.INFO { background:rgba(203,180,236,.15); color:var(--mist-violet); }
-    .log-level.SUCCESS { background:rgba(180,220,195,.2); color:#6db88a; }
-    .log-level.WARNING { background:rgba(240,196,214,.2); color:#c47a8e; }
-    .log-level.ERROR { background:rgba(239,68,68,.1); color:#c45a5a; }
-    .log-msg { color:var(--ink); flex:1; word-break:break-all; }
     /* 进度条：加高+深色可读 */
     .pbar-wrap { display:flex; align-items:center; gap:10px; width:100%; }
     .pbar { flex:1; height:12px; border-radius:999px; background:rgba(122,96,158,.14); overflow:hidden; position:relative; }
@@ -272,7 +270,18 @@ function pbarHtml(pct){
       </div>
     </div>
     <div class="log-box" id="log-box" style="display:none"></div>
-    <div class="log-list" id="log-list"></div>
+    <table class="log-list" id="log-list">
+      <thead>
+        <tr>
+          <th>下载时间</th>
+          <th>下载格式</th>
+          <th>状态</th>
+          <th>频道上传时间</th>
+          <th>文件名称</th>
+        </tr>
+      </thead>
+      <tbody id="log-list-body"></tbody>
+    </table>
   </section>
 
   <!-- ═══════ 4. 历史 ═══════ -->
@@ -577,22 +586,28 @@ function pollLog(){
   document.getElementById('log-box').textContent=lines.join('\n');
   document.getElementById('log-n').textContent=lines.length+' 行';
   if(_logAuto){var b=document.getElementById('log-box');b.scrollTop=b.scrollHeight;}
-  if(_logListMode)renderLogList(lines);
+  if(_logListMode)renderLogTable();
 }
-function renderLogList(lines){
-  var el=document.getElementById('log-list');
+function renderLogTable(){
+  // 列表视图：从下载历史库取结构化数据，渲染 5 列表格
+  var x=new XMLHttpRequest();x.open('GET','get_history?page=1&per_page=200&media_type=All',false);x.send();
+  var d=JSON.parse(x.responseText);
+  var tb=document.getElementById('log-list-body');
+  if(!d.files||!d.files.length){tb.innerHTML='<tr><td colspan="5" class="empty">暂无记录</td></tr>';return;}
   var html='';
-  for(var i=lines.length-1;i>=0;i--){
-    var line=lines[i];
-    var m=line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s*\|\s*(INFO|SUCCESS|WARNING|ERROR)\s*\|\s*[^|]*\s*-\s*(.*)/);
-    if(m){
-      html+='<div class="log-item"><span class="log-time">'+esc(m[1].slice(11))+'</span><span class="log-level '+m[2]+'">'+m[2]+'</span><span class="log-msg">'+esc(m[3])+'</span></div>';
-    }else{
-      html+='<div class="log-item"><span class="log-time"></span><span class="log-level INFO">LOG</span><span class="log-msg">'+esc(line)+'</span></div>';
-    }
-  }
-  el.innerHTML=html;
-  if(_logAuto)el.scrollTop=0;
+  d.files.forEach(function(f){
+    var ext=(f.name.split('.').pop()||'').toUpperCase();
+    var st=f.status==='failed'?'<span class="st-fail">失败</span>':f.status==='skip'?'<span class="st-skip">跳过</span>':'<span class="st-ok">成功</span>';
+    var up=f.upload_time_str||'-';
+    html+='<tr>'
+      +'<td>'+esc(f.mtime_str)+'</td>'
+      +'<td>'+esc(ext)+'</td>'
+      +'<td>'+st+'</td>'
+      +'<td>'+esc(up)+'</td>'
+      +'<td class="log-fname">'+esc(f.name)+'</td>'
+      +'</tr>';
+  });
+  tb.innerHTML=html;
 }
 function logAutoToggle(){
   _logAuto=!_logAuto;
@@ -605,8 +620,8 @@ function logModeToggle(){
   btn.className='log-toggle'+(_logListMode?' on':'');
   btn.textContent=_logListMode?'终端视图':'列表视图';
   document.getElementById('log-box').style.display=_logListMode?'none':'block';
-  document.getElementById('log-list').style.display=_logListMode?'block':'none';
-  if(_logListMode){var x=new XMLHttpRequest();x.open('GET','get_logs?lines=200',false);x.send();renderLogList(JSON.parse(x.responseText));}
+  document.getElementById('log-list').style.display=_logListMode?'table':'none';
+  if(_logListMode){renderLogTable();}
 }
 
 /* ── 历史 ── */

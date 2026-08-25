@@ -30,9 +30,17 @@ def init_db():
                     file_size INTEGER NOT NULL,
                     file_path TEXT,
                     media_type TEXT,
-                    download_timestamp REAL NOT NULL
+                    download_timestamp REAL NOT NULL,
+                    status TEXT,
+                    upload_telegram_time REAL
                 )
             """)
+            # 兼容旧库：新增字段（sqlite 不支持 ADD COLUMN IF NOT EXISTS）
+            for col, typ in (("status", "TEXT"), ("upload_telegram_time", "REAL")):
+                try:
+                    c.execute(f"ALTER TABLE download_history ADD COLUMN {col} {typ}")
+                except Exception:
+                    pass
             c.execute("CREATE INDEX IF NOT EXISTS idx_ts ON download_history(download_timestamp DESC)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_chat ON download_history(chat_id)")
         _db_ok = True
@@ -40,18 +48,33 @@ def init_db():
         logger.error(f"数据库初始化失败: {e}")
 
 
-def record_download(chat_id, message_id, file_name, file_size, file_path="", media_type=""):
-    """记录一次成功下载"""
+def record_download(chat_id, message_id, file_name, file_size, file_path="", media_type="", status="success"):
+    """记录一次下载（status: success / failed / skip）"""
     if not _db_ok:
         return
     try:
         with _conn() as c:
             c.execute(
-                "INSERT INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp) VALUES (?,?,?,?,?,?,?)",
-                (str(chat_id), message_id, file_name, file_size, file_path, media_type, time.time()),
+                "INSERT INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp,status) VALUES (?,?,?,?,?,?,?,?)",
+                (str(chat_id), message_id, file_name, file_size, file_path, media_type, time.time(), status),
             )
     except Exception as e:
         logger.error(f"记录下载失败 {file_name}: {e}")
+
+
+def record_upload_time(chat_id, message_id, ts=None):
+    """记录转发到 Telegram 频道的时间（按 chat_id + message_id 定位）"""
+    if not _db_ok:
+        return
+    try:
+        with _conn() as c:
+            c.execute(
+                "UPDATE download_history SET upload_telegram_time = ? "
+                "WHERE chat_id = ? AND message_id = ?",
+                (ts if ts is not None else time.time(), str(chat_id), message_id),
+            )
+    except Exception as e:
+        logger.error(f"记录转发时间失败: {e}")
 
 
 def get_history(page=1, per_page=30, search="", media_type="All", sort_by="download_timestamp", sort_desc=True):
@@ -132,8 +155,8 @@ def backfill_from_dir(base_dir, media_type="document"):
                     rel = os.path.relpath(fpath, base_dir)
                     mtime = os.path.getmtime(fpath)
                     c.execute(
-                        "INSERT INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp) VALUES (?,?,?,?,?,?,?)",
-                        ("-", 0, name, size, rel, media_type, mtime),
+                        "INSERT INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp,status) VALUES (?,?,?,?,?,?,?,?)",
+                        ("-", 0, name, size, rel, media_type, mtime, "success"),
                     )
                     existing.add((name, size))
                     added += 1

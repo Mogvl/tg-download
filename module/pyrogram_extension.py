@@ -356,6 +356,10 @@ async def upload_telegram_chat_message(
 
     if forward_status != ForwardStatus.CacheForward:
         node.stat_forward(forward_status)
+        # 记录转发到 Telegram 频道的时间（用于 Web 日志列表「频道上传时间」列）
+        if forward_status is ForwardStatus.SuccessForward and message.id:
+            import utils.db as _db
+            _db.record_upload_time(node.chat_id, message.id)
     return forward_status
 
 
