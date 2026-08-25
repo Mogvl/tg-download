@@ -387,7 +387,7 @@ class Application:
         self.config: dict = {}
         self.app_data: dict = {}
         self.file_path_prefix: List[str] = ["chat_title", "media_datetime"]
-        self.file_name_prefix: List[str] = ["message_id", "file_name"]
+        self.file_name_prefix: List[str] = ["publish_time", "file_name"]
         self.file_name_prefix_split: str = " - "
         self.log_file_path = os.path.join(os.path.abspath("."), "log")
         self.session_file_path = os.path.join(os.path.abspath("."), "sessions")
@@ -757,7 +757,11 @@ class Application:
         return res
 
     def get_file_name(
-        self, message_id: int, file_name: Optional[str], caption: Optional[str]
+        self,
+        message_id: int,
+        file_name: Optional[str],
+        caption: Optional[str],
+        publish_time: datetime = None,
     ) -> str:
         """Get file save path prefix.
 
@@ -772,6 +776,9 @@ class Application:
         caption: Optional[str]
             Message caption
 
+        publish_time: Optional[datetime]
+            Message publish time (源频道发布时间)
+
         Returns
         -------
         str
@@ -784,6 +791,10 @@ class Application:
                 if res != "":
                     res += self.file_name_prefix_split
                 res += f"{message_id}"
+            elif prefix == "publish_time" and publish_time:
+                if res != "":
+                    res += self.file_name_prefix_split
+                res += publish_time.strftime("%Y-%m-%d_%H-%M")
             elif prefix == "file_name" and file_name:
                 if res != "":
                     res += self.file_name_prefix_split

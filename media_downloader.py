@@ -251,7 +251,10 @@ async def _get_media_meta(
             file_name = f"{message.photo.file_unique_id}"
 
         gen_file_name = (
-            app.get_file_name(message.id, file_name, caption) + file_name_suffix
+            app.get_file_name(
+                message.id, file_name, caption, publish_time=message.date
+            )
+            + file_name_suffix
         )
 
         file_save_path = app.get_file_save_path(_type, dirname, datetime_dir_name)
@@ -288,7 +291,7 @@ async def save_msg_to_file(
     file_name = os.path.join(
         app.temp_save_path,
         file_save_path,
-        f"{app.get_file_name(message.id, None, None)}.txt",
+        f"{app.get_file_name(message.id, None, None, publish_time=message.date)}.txt",
     )
 
     os.makedirs(os.path.dirname(file_name), exist_ok=True)

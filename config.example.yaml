@@ -46,9 +46,9 @@ file_path_prefix:
   - chat_title
   - media_datetime
 
-# 文件命名前缀，可组合：message_id / file_name / caption
+# 文件命名前缀，可组合：publish_time / message_id / file_name / caption
 file_name_prefix:
-  - message_id
+  - publish_time
   - file_name
 file_name_prefix_split: " - "
 
