@@ -775,7 +775,11 @@ def main():
         app.is_running = False
         if app.bot_token:
             app.loop.run_until_complete(stop_download_bot())
-        app.loop.run_until_complete(stop_server(client))
+        try:
+            app.loop.run_until_complete(stop_server(client))
+        except Exception as e:
+            # 客户端可能已在异常路径被 terminate，避免二次异常掩盖主错误
+            logger.warning(f"stop client 忽略异常: {e}")
         for task in tasks:
             task.cancel()
         logger.info(_t("Stopped!"))

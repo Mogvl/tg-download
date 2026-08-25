@@ -140,6 +140,11 @@ def _apply_login_state():
 
 def _csrf_protect():
     """简单 CSRF 防护：POST 请求校验 Origin/Referer 与 Host 同源"""
+    # 启动时（init_web 调 _apply_login_state）没有请求上下文，request 不可用，直接跳过
+    from flask import has_request_context
+
+    if not has_request_context():
+        return
     if request.method != "POST":
         return
     # 只对需要登录态的接口生效（避免影响 /login 本身的 POST）
