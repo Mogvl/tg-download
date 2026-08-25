@@ -1,12 +1,14 @@
 """web ui for media download"""
 
+import hashlib
+import hmac
 import logging
 import os
 import secrets
 import threading
 import time
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request
 from flask_login import LoginManager, UserMixin, login_required, login_user
 from ruamel import yaml
 
@@ -93,6 +95,32 @@ def _current_secret() -> str:
     return str(cfg.get("web_login_secret", "") or "")
 
 
+# 登录失败限速：5 次失败后锁定 60 秒
+_LOGIN_MAX_FAIL = 5
+_LOGIN_LOCK_SECONDS = 60
+_login_fail_count = 0
+_login_fail_time = 0.0
+
+
+def _check_login_rate() -> bool:
+    """登录是否允许尝试（限速）"""
+    global _login_fail_count, _login_fail_time
+    now = time.time()
+    if _login_fail_count >= _LOGIN_MAX_FAIL:
+        if now - _login_fail_time < _LOGIN_LOCK_SECONDS:
+            return False
+        # 锁定时间结束，重置
+        _login_fail_count = 0
+    return True
+
+
+def _record_login_fail():
+    """记录一次登录失败"""
+    global _login_fail_count, _login_fail_time
+    _login_fail_count += 1
+    _login_fail_time = time.time()
+
+
 def _apply_login_state():
     """在每个请求前，根据磁盘上的开关实时决定是否需要登录。
 
@@ -107,6 +135,27 @@ def _apply_login_state():
     else:
         # 开关关闭：免登录直进主页
         _flask_app.config["LOGIN_DISABLED"] = True
+    _csrf_protect()
+
+
+def _csrf_protect():
+    """简单 CSRF 防护：POST 请求校验 Origin/Referer 与 Host 同源"""
+    if request.method != "POST":
+        return
+    # 只对需要登录态的接口生效（避免影响 /login 本身的 POST）
+    if request.path in ("/login",):
+        return
+    origin = request.headers.get("Origin") or request.headers.get("Referer") or ""
+    if not origin:
+        # 无 Origin/Referer（如 curl）直接拒绝写操作
+        from flask import abort
+
+        abort(403)
+    host = request.host
+    if host not in origin:
+        from flask import abort
+
+        abort(403)
 
 
 def init_web(app: Application):
@@ -121,6 +170,12 @@ def init_web(app: Application):
     """
     global web_login_users, _app
     _app = app
+    # 用 web_login_secret 派生会话密钥（哈希到 32 字节），保持登录态跨重启稳定；
+    # 未配置时用随机密钥（重启后需重新登录）
+    if app.web_login_secret:
+        _flask_app.secret_key = hashlib.sha256(
+            app.web_login_secret.encode("utf-8")
+        ).digest()
     # 启动时先按当前开关设置一次（避免首个请求前空白期）
     _apply_login_state()
     # 之后每个请求前都重新判定，保证开关实时、正确生效
@@ -167,12 +222,20 @@ def login():
         # 开了开关却没设密码：拒绝任何密码，避免裸奔
         if not secret:
             return jsonify({"code": "0"})
-        if password == secret:
-            user = User()
-            login_user(user)
-            return jsonify({"code": "1"})
-        return jsonify({"code": "0"})
+        if _check_login_rate():
+            # 恒定时间比较，避免时序侧信道
+            if hmac.compare_digest(password, secret):
+                user = User()
+                login_user(user)
+                return jsonify({"code": "1"})
+            _record_login_fail()
+            return jsonify({"code": "0"})
+        # 失败次数过多，锁定一段时间
+        return jsonify({"code": "0", "msg": "尝试次数过多，请稍后再试"})
 
+    # GET：开关关闭时不暴露登录页
+    if not _login_enabled():
+        return redirect("/")
     return render_template("login.html")
 
 
@@ -251,39 +314,28 @@ def get_download_list():
     already_down = request.args.get("already_down") == "true"
 
     download_result = get_download_result()
-    result = "["
+    items = []
     for chat_id, messages in download_result.items():
         for idx, value in messages.items():
-            is_already_down = value["down_byte"] == value["total_size"]
+            total_size = value.get("total_size") or 0
+            down_byte = value.get("down_byte") or 0
+            is_already_down = down_byte == total_size
 
             if already_down and not is_already_down:
                 continue
 
-            if result != "[":
-                result += ","
-            download_speed = format_byte(value["download_speed"]) + "/s"
-            result += (
-                '{ "chat":"'
-                + f"{chat_id}"
-                + '", "id":"'
-                + f"{idx}"
-                + '", "filename":"'
-                + os.path.basename(value["file_name"])
-                + '", "total_size":"'
-                + f'{format_byte(value["total_size"])}'
-                + '" ,"download_progress":"'
-            )
-            result += (
-                f'{round(value["down_byte"] / value["total_size"] * 100, 1)}'
-                + '" ,"download_speed":"'
-                + download_speed
-                + '" ,"save_path":"'
-                + value["file_name"].replace("\\", "/")
-                + '"}'
-            )
+            progress = round(down_byte / total_size * 100, 1) if total_size else 0.0
+            items.append({
+                "chat": str(chat_id),
+                "id": str(idx),
+                "filename": os.path.basename(value.get("file_name") or ""),
+                "total_size": format_byte(total_size),
+                "download_progress": progress,
+                "download_speed": format_byte(value.get("download_speed") or 0) + "/s",
+                "save_path": (value.get("file_name") or "").replace("\\", "/"),
+            })
 
-    result += "]"
-    return result
+    return jsonify(items)
 
 
 # ────────────────────────────────────────────────────────
@@ -330,7 +382,9 @@ def web_get_config():
     safe["web_port"] = cfg.get("web_port", 5000)
     safe["max_download_task"] = cfg.get("max_download_task", 5)
     safe["language"] = cfg.get("language", "EN")
-    safe["web_login_secret"] = cfg.get("web_login_secret", "")
+    safe["web_login_secret"] = ""
+    # 不返回明文密码，仅告知是否已设置（前端据此提示）
+    safe["web_login_secret_set"] = bool(cfg.get("web_login_secret", ""))
     safe["web_login_enabled"] = bool(cfg.get("web_login_enabled", False))
     safe["hide_file_name"] = cfg.get("hide_file_name", False)
     safe["date_format"] = cfg.get("date_format", "%Y_%m")
@@ -366,13 +420,24 @@ def web_save_config():
     if "web_host" in data:
         cfg["web_host"] = data["web_host"]
     if "web_port" in data:
-        cfg["web_port"] = int(data["web_port"]) if data["web_port"] else 5000
+        try:
+            port = int(data["web_port"])
+        except (TypeError, ValueError):
+            port = 5000
+        cfg["web_port"] = port if 1 <= port <= 65535 else 5000
     if "max_download_task" in data:
-        cfg["max_download_task"] = int(data["max_download_task"]) if data["max_download_task"] else 5
+        try:
+            mt = int(data["max_download_task"])
+        except (TypeError, ValueError):
+            mt = 5
+        cfg["max_download_task"] = mt if 1 <= mt <= 100 else 5
     if "language" in data:
         cfg["language"] = data["language"]
     if "web_login_secret" in data:
-        cfg["web_login_secret"] = data["web_login_secret"]
+        # 仅当用户显式输入了新密码时才更新（前端不回显明文，空值=未修改）
+        new_secret = str(data["web_login_secret"] or "")
+        if new_secret:
+            cfg["web_login_secret"] = new_secret
     if "web_login_enabled" in data:
         cfg["web_login_enabled"] = bool(data["web_login_enabled"])
     if "hide_file_name" in data:
@@ -411,17 +476,24 @@ def web_save_config():
 @login_required
 def web_get_logs():
     """返回最近 N 行日志"""
-    lines = int(request.args.get("lines", 120))
+    from collections import deque
+
+    try:
+        lines = min(int(request.args.get("lines", 120)), 2000)
+    except (TypeError, ValueError):
+        lines = 120
     if not _app:
         return jsonify([])
     log_path = os.path.join(_app.log_file_path, "tdl.log")
     if not os.path.isfile(log_path):
         return jsonify([])
     try:
+        # 流式保留最后 N 行，避免大日志全量 readlines 内存/IO 开销
+        tail = deque(maxlen=lines)
         with open(log_path, encoding="utf-8", errors="replace") as f:
-            all_lines = f.readlines()
-        tail = all_lines[-lines:]
-        return jsonify([l.rstrip() for l in tail])
+            for line in f:
+                tail.append(line.rstrip())
+        return jsonify(list(tail))
     except Exception:
         return jsonify([])
 
@@ -434,8 +506,14 @@ def web_get_logs():
 @login_required
 def web_get_history():
     """从数据库查询下载历史（支持搜索/筛选/排序/分页）"""
-    page = int(request.args.get("page", 1))
-    per_page = int(request.args.get("per_page", 30))
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        per_page = min(max(int(request.args.get("per_page", 30)), 1), 200)
+    except (TypeError, ValueError):
+        per_page = 30
     search = request.args.get("search", "").strip()
     media_type = request.args.get("media_type", "All")
     sort_by = request.args.get("sort_by", "download_timestamp")
