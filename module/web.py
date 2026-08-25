@@ -82,14 +82,31 @@ def run_web_server(app: Application):
 
 # pylint: disable = W0603
 def _login_enabled() -> bool:
-    """登录开关是否开启（运行时实时从内存配置读取）"""
-    return bool(_app and _app.web_login_enabled)
+    """登录开关是否开启（运行时实时从磁盘 yaml 读取，不依赖内存快照）"""
+    cfg = _read_config()
+    return bool(cfg.get("web_login_enabled", False))
 
 
 def _current_secret() -> str:
     """实时从磁盘读取 web_login_secret，避免依赖启动时的全局快照"""
     cfg = _read_config()
     return str(cfg.get("web_login_secret", "") or "")
+
+
+def _apply_login_state():
+    """在每个请求前，根据磁盘上的开关实时决定是否需要登录。
+
+    解决两个问题：
+    1. 开关改 true 后仍免登录（旧实现只在启动时判断一次，且 LOGIN_DISABLED 只设不清除）
+    2. 运行时改 yaml 重启后立即生效，不残留旧状态
+    """
+    if _login_enabled():
+        # 开关开启：必须输密码
+        _flask_app.config.pop("LOGIN_DISABLED", None)
+        _login_manager.login_view = "login"
+    else:
+        # 开关关闭：免登录直进主页
+        _flask_app.config["LOGIN_DISABLED"] = True
 
 
 def init_web(app: Application):
@@ -104,13 +121,10 @@ def init_web(app: Application):
     """
     global web_login_users, _app
     _app = app
-    if _login_enabled():
-        # 开关开启：必须输密码（密码来自 web_login_secret，缺失则任何密码都拒绝）
-        _flask_app.secret_key = app.web_login_secret or secrets.token_urlsafe(32)
-        web_login_users = {"root": _current_secret()}
-    else:
-        # 开关关闭：免登录直进主页
-        _flask_app.config["LOGIN_DISABLED"] = True
+    # 启动时先按当前开关设置一次（避免首个请求前空白期）
+    _apply_login_state()
+    # 之后每个请求前都重新判定，保证开关实时、正确生效
+    _flask_app.before_request(_apply_login_state)
     if app.debug_web:
         threading.Thread(target=run_web_server, args=(app,)).start()
     else:
