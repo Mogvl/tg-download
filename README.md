@@ -56,19 +56,36 @@ version: "3.8"
 
 services:
   tg-download:
+    # 本项目自动构建的镜像（push 到 main 后由 GitHub Actions 发布）
     image: ghcr.io/mogvl/tg-download:latest
+    # 如需基于源码本地构建，注释掉上面的 image 行，并取消下面 build 行的注释：
+    # build: .
     container_name: tg-download
     ports:
+      # Web UI 端口映射（外部端口:容器内 5000）
       - "14087:5000"
     environment:
       - TZ=Asia/Shanghai
     volumes:
+      # 首次部署前，必须先执行：
+      #   cp config.example.yaml config.yaml  并填入 api_id / api_hash
+      #   cp data.example.yaml data.yaml
+      # 注意：config.yaml / data.yaml 文件必须存在，否则 Docker 会把它们挂载成目录导致启动失败
       - /volume1/docker/tg-download/config.yaml:/app/config.yaml
       - /volume1/docker/tg-download/data.yaml:/app/data.yaml
+
+      # 下载文件存储目录（持久化）
       - /volume1/dockerdn/tg:/app/downloads
+
+      # Telegram 登录会话（持久化，重启不丢失）
       - ./sessions:/app/sessions
+
+      # 日志与临时文件
       - ./log:/app/log
       - ./temp:/app/temp
+
+      # 如需 rclone 上传云盘，取消下行注释并放入 rclone 配置
+      # - ./rclone/:/root/.config/rclone/
     restart: unless-stopped
 ```
 
