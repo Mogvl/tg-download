@@ -76,16 +76,8 @@ async def get_chat_history_v2(
         )
 
         if not messages:
-            break_count = offset_id - 1
-            async for message in self.get_chat_history(chat_id):
-                if break_count:
-                    break_count -= 1
-                    continue
-                if len(messages) >= limit + 1:
-                    break
-                messages.append(message)
-            if not messages:
-                return
+            # 没有更多消息，结束分页
+            return
 
         offset_id = messages[-1].id + (1 if reverse else 0)
 

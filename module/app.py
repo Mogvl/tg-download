@@ -1,6 +1,7 @@
 """Application module"""
 
 import asyncio
+import functools
 import os
 import time
 from asyncio import Lock
@@ -709,10 +710,15 @@ class Application:
                 progress_args,
             )
         elif self.cloud_drive_config.upload_adapter == "aligo":
+            # aligo_upload_file 是同步阻塞函数，放入线程池执行，避免阻塞事件循环；
+            # 注意 run_in_executor 需要可调用对象，不能传函数调用结果
             ret = await self.loop.run_in_executor(
                 self.executor,
-                CloudDrive.aligo_upload_file(
-                    self.cloud_drive_config, self.save_path, local_file_path
+                functools.partial(
+                    CloudDrive.aligo_upload_file,
+                    self.cloud_drive_config,
+                    self.save_path,
+                    local_file_path,
                 ),
             )
 
@@ -825,7 +831,12 @@ class Application:
         """
         if download_config.download_filter:
             self.download_filter.set_meta_data(meta_data)
-            return self.download_filter.exec(download_config.download_filter)
+            try:
+                return self.download_filter.exec(download_config.download_filter)
+            except Exception as e:
+                # 过滤表达式解析/字段错误时默认放行并告警，避免单条错误中断整个频道
+                logger.warning(f"download_filter 执行出错，默认放行: {e}")
+                return True
 
         return True
 

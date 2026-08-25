@@ -24,6 +24,8 @@ def format_byte(size: float, dot=2):
     """format byte"""
 
     # pylint: disable = R0912
+    if size is None or size < 0:
+        return "0 B"
     if 0 <= size < 1:
         human_size = str(round(size / 0.125, dot)) + "b"
     elif 1 <= size < 1024:
@@ -212,6 +214,9 @@ def truncate_filename(path: str, limit: int = 230) -> str:
     p, f = os.path.split(os.path.normpath(path))
     f, e = os.path.splitext(f)
     f_max = limit - len(e.encode("utf-8"))
+    if f_max <= 0:
+        # 扩展名本身超过 limit，直接返回截断后的扩展名
+        return os.path.join(p, e[: limit - 1])
     f = unicodedata.normalize("NFC", f)
     f_trunc = f.encode()[:f_max].decode("utf-8", errors="ignore")
     return os.path.join(p, f_trunc + e)

@@ -64,8 +64,10 @@ class CloudDrive:
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-        ):
-            pass
+        ) as p:
+            out, _ = p.communicate(timeout=60)
+            if p.returncode != 0:
+                logger.warning(f"rclone mkdir failed: {out.decode(errors='replace')}")
 
     @staticmethod
     def aligo_mkdir(drive_config: CloudDriveConfig, remote_dir: str):
@@ -129,36 +131,38 @@ class CloudDrive:
                 async for output in proc.stdout:
                     s = output.decode(errors="replace")
                     print(s)
-                    if "Transferred" in s and "100%" in s and "1 / 1" in s:
-                        logger.info(f"upload file {local_file_path} success")
-                        drive_config.total_upload_success_file_count += 1
-                        if drive_config.after_upload_file_delete:
-                            os.remove(local_file_path)
-                        if drive_config.before_upload_file_zip:
-                            os.remove(zip_file_path)
-                        upload_status = True
-                    else:
-                        pattern = (
-                            r"Transferred: (.*?) / (.*?), (.*?)%, (.*?/s)?, ETA (.*?)$"
+                    pattern = (
+                        r"Transferred: (.*?) / (.*?), (.*?)%, (.*?/s)?, ETA (.*?)$"
+                    )
+                    transferred_match = re.search(pattern, s)
+
+                    if transferred_match and progress_callback:
+                        func = functools.partial(
+                            progress_callback,
+                            transferred_match.group(1),
+                            transferred_match.group(2),
+                            transferred_match.group(3),
+                            transferred_match.group(4),
+                            transferred_match.group(5),
+                            *progress_args,
                         )
-                        transferred_match = re.search(pattern, s)
+                        if inspect.iscoroutinefunction(progress_callback):
+                            await func()
+                        else:
+                            func()
 
-                        if transferred_match:
-                            if progress_callback:
-                                func = functools.partial(
-                                    progress_callback,
-                                    transferred_match.group(1),
-                                    transferred_match.group(2),
-                                    transferred_match.group(3),
-                                    transferred_match.group(4),
-                                    transferred_match.group(5),
-                                    *progress_args,
-                                )
-
-                            if inspect.iscoroutinefunction(progress_callback):
-                                await func()
-
-            await proc.wait()
+            # 以退出码判定成功（文本匹配对不同 rclone 版本/语言不可靠）
+            returncode = await proc.wait()
+            if returncode == 0:
+                logger.info(f"upload file {local_file_path} success")
+                drive_config.total_upload_success_file_count += 1
+                if drive_config.after_upload_file_delete:
+                    os.remove(local_file_path)
+                if drive_config.before_upload_file_zip:
+                    os.remove(zip_file_path)
+                upload_status = True
+            else:
+                logger.warning(f"rclone upload failed, returncode={returncode}")
         except Exception as e:
             logger.error(f"{e.__class__} {e}")
             return False

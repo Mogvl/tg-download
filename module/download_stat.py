@@ -1,6 +1,7 @@
 """Download Stat"""
 import asyncio
 import time
+from collections import OrderedDict
 from enum import Enum
 
 from pyrogram import Client
@@ -14,6 +15,9 @@ class DownloadState(Enum):
     Downloading = 1
     StopDownload = 2
 
+
+# 每个 chat 最多保留的下载进度条目，防止长期运行内存无限增长
+_MAX_RESULT_PER_CHAT = 500
 
 _download_result: dict = {}
 _total_download_speed: int = 0
@@ -71,7 +75,7 @@ async def update_download_status(
         await asyncio.sleep(1)
 
     if not _download_result.get(chat_id):
-        _download_result[chat_id] = {}
+        _download_result[chat_id] = OrderedDict()
 
     if _download_result[chat_id].get(message_id):
         last_download_byte = _download_result[chat_id][message_id]["down_byte"]
@@ -82,6 +86,7 @@ async def update_download_status(
         ]
         end_time = _download_result[chat_id][message_id]["end_time"]
 
+        # 仅累计增量，避免首次插入与后续增量重复累加
         _total_download_size += down_byte - last_download_byte
         each_second_total_download += down_byte - last_download_byte
 
@@ -98,19 +103,24 @@ async def update_download_status(
         _download_result[chat_id][message_id][
             "each_second_total_download"
         ] = each_second_total_download
+        # 保持插入序，便于淘汰最旧
+        _download_result[chat_id].move_to_end(message_id)
     else:
-        each_second_total_download = down_byte
+        each_second_total_download = 0  # 首次回调作为窗口起点，不把初始字节算进窗口速率
         _download_result[chat_id][message_id] = {
             "down_byte": down_byte,
             "total_size": total_size,
             "file_name": file_name,
             "start_time": start_time,
             "end_time": cur_time,
-            "download_speed": down_byte / (cur_time - start_time),
+            "download_speed": down_byte / (cur_time - start_time) if cur_time > start_time else 0,
             "each_second_total_download": each_second_total_download,
             "task_id": node.task_id,
         }
-        _total_download_size += down_byte
+
+        # 限制每个 chat 的条目数，防止内存无限增长
+        while len(_download_result[chat_id]) > _MAX_RESULT_PER_CHAT:
+            _download_result[chat_id].popitem(last=False)
 
     if cur_time - _last_download_time >= 1.0:
         # update speed

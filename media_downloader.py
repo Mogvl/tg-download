@@ -57,6 +57,10 @@ logging.getLogger("pyrogram.client").addFilter(LogFilter())
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 
+class _SizeMismatchError(Exception):
+    """下载文件大小与远端不一致（用于区分于 BadRequest，避免误入引用过期重试）"""
+
+
 def _check_download_finish(media_size: int, download_path: str, ui_file_name: str):
     """Check download task if finish
 
@@ -80,7 +84,7 @@ def _check_download_finish(media_size: int, download_path: str, ui_file_name: st
             f"{media_size}, {_t('file name')}: {ui_file_name}"
         )
         os.remove(download_path)
-        raise pyrogram.errors.exceptions.bad_request_400.BadRequest()
+        raise _SizeMismatchError()
 
 
 def _move_to_download_path(temp_download_path: str, download_path: str):
@@ -315,7 +319,11 @@ async def download_task(
 
     node.download_status[message.id] = download_status
 
-    file_size = os.path.getsize(file_name) if file_name else 0
+    try:
+        file_size = os.path.getsize(file_name) if file_name else 0
+    except OSError:
+        # 文件可能在转发后被删除（after_upload_telegram_delete），不影响计数
+        file_size = 0
 
     await upload_telegram_chat(
         client,
@@ -416,7 +424,9 @@ async def download_media(
             if _can_download(_type, file_formats, file_format):
                 if _is_exist(file_name):
                     file_size = os.path.getsize(file_name)
-                    if file_size or file_size == media_size:
+                    # 仅当磁盘文件大小与远端一致时才判定为已下载；
+                    # 原 `file_size or file_size == media_size` 在文件损坏/未下完时也会误判跳过
+                    if file_size and file_size == media_size:
                         logger.info(
                             f"id={message.id} {ui_file_name} "
                             f"{_t('already download,download skipped')}.\n"
@@ -492,6 +502,12 @@ async def download_media(
                     f"Message[{message.id}]: "
                     f"{_t('file reference expired for 3 retries, download skipped.')}"
                 )
+        except _SizeMismatchError:
+            # 文件大小与远端不一致：重试无意义，直接判定失败
+            logger.error(
+                f"Message[{message.id}]: {_t('media size mismatch, download skipped.')}"
+            )
+            break
         except pyrogram.errors.exceptions.flood_420.FloodWait as wait_err:
             await asyncio.sleep(wait_err.value)
             logger.warning("Message[{}]: FlowWait {}", message.id, wait_err.value)
@@ -565,6 +581,10 @@ async def worker(client: pyrogram.client.Client):
             node: TaskNode = item[1]
 
             if node.is_stop_transmission:
+                # 停止传输时也补记状态，避免 total_task/finish_task 计数失衡
+                # 导致 run_until_all_task_finish 判定错位
+                app.set_download_id(node, message.id, DownloadStatus.SkipDownload)
+                node.download_status[message.id] = DownloadStatus.SkipDownload
                 continue
 
             if node.client:
@@ -633,6 +653,7 @@ async def download_chat_task(
                 )
 
     chat_download_config.need_check = True
+    # 确保 total_task 等于最终入队数（即使异常中断也赋值，避免 finish 判定永远不等）
     chat_download_config.total_task = node.total_task
     node.is_running = True
 
@@ -651,6 +672,8 @@ async def download_all_chat(client: pyrogram.Client):
         except Exception as e:
             logger.warning(f"Download {key} error: {e}")
         finally:
+            # 异常时也确保计数一致，避免 total_task=0 而 finish_task>0 导致判定悬挂
+            value.total_task = value.node.total_task
             value.need_check = True
 
 
