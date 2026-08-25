@@ -57,9 +57,9 @@ web_host: 0.0.0.0         # Docker 部署必须为 0.0.0.0
 web_port: 5000            # 对外端口由 docker-compose.yml 的端口映射决定（默认 13087）
 # Web UI 登录开关：true=必须输入密码登录；false/留空=免登录直接进主页
 # 注意：开关开启后必须同时设置 web_login_secret，否则任何密码都会被拒绝
-web_login_enabled: false
+web_login_enabled: true
 # Web UI 登录密码（仅在 web_login_enabled: true 时生效）
-web_login_secret: ""
+web_login_secret: "your_web_password"
 hide_file_name: false
 
 language: ZH               # 界面语言：EN / ZH / RU / UA
