@@ -279,6 +279,7 @@
 /* ── 全局 ── */
 var _logAuto=true, _hPg=1, _hT=0, _logTmr=null, _logListMode=true;
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200);}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
 /* ── 标签页切换 ── */
 var _dlTableReady=false;
@@ -341,11 +342,11 @@ layui.use(['table','element'],function(){
           if(ex.length){
             if(res[i].download_progress>=100)ex.remove();
           } else if(res[i].download_progress<100){
-            tb.append('<tr data-index="'+k+'">'
-              +'<td data-field="chat"><div class="layui-table-cell">'+res[i].chat+'</div></td>'
-              +'<td data-field="id"><div class="layui-table-cell">'+res[i].id+'</div></td>'
-              +'<td data-field="filename"><div class="layui-table-cell">'+res[i].filename+'</div></td>'
-              +'<td data-field="total_size"><div class="layui-table-cell">'+res[i].total_size+'</div></td>'
+            tb.append('<tr data-index="'+esc(k)+'">'
+              +'<td data-field="chat"><div class="layui-table-cell">'+esc(res[i].chat)+'</div></td>'
+              +'<td data-field="id"><div class="layui-table-cell">'+esc(res[i].id)+'</div></td>'
+              +'<td data-field="filename"><div class="layui-table-cell">'+esc(res[i].filename)+'</div></td>'
+              +'<td data-field="total_size"><div class="layui-table-cell">'+esc(res[i].total_size)+'</div></td>'
               +'<td data-field="download_progress"><div class="layui-table-cell"><div class="layui-progress layui-progress-big" lay-showpercent="true"><div class="layui-progress-bar layui-bg-blue" style="width:'+res[i].download_progress+'%"><span class="layui-progress-text">'+res[i].download_progress+'%</span></div></div></div></td>'
               +'<td data-field="download_speed"><div class="layui-table-cell">'+res[i].download_speed+'</div></td></tr>');
           }
@@ -524,9 +525,9 @@ function renderLogList(lines){
     var line=lines[i];
     var m=line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s*\|\s*(INFO|SUCCESS|WARNING|ERROR)\s*\|\s*[^|]*\s*-\s*(.*)/);
     if(m){
-      html+='<div class="log-item"><span class="log-time">'+m[1].slice(11)+'</span><span class="log-level '+m[2]+'">'+m[2]+'</span><span class="log-msg">'+m[3]+'</span></div>';
+      html+='<div class="log-item"><span class="log-time">'+esc(m[1].slice(11))+'</span><span class="log-level '+m[2]+'">'+m[2]+'</span><span class="log-msg">'+esc(m[3])+'</span></div>';
     }else{
-      html+='<div class="log-item"><span class="log-time"></span><span class="log-level INFO">LOG</span><span class="log-msg">'+line+'</span></div>';
+      html+='<div class="log-item"><span class="log-time"></span><span class="log-level INFO">LOG</span><span class="log-msg">'+esc(line)+'</span></div>';
     }
   }
   el.innerHTML=html;
@@ -561,7 +562,7 @@ function hLoad(){
   var tb=document.getElementById('h-body');tb.innerHTML='';
   if(!d.files.length){tb.innerHTML='<tr><td colspan="6" class="empty">暂无文件</td></tr>';return;}
   d.files.forEach(function(f){
-    tb.innerHTML+='<tr><td style="color:var(--ink-3);font-size:12px">'+f.chat_id+'</td><td>'+f.name+'</td><td>'+f.size_str+'</td><td style="color:var(--ink-3);font-size:12px">'+(f.media_type||'-')+'</td><td style="color:var(--ink-3)">'+f.mtime_str+'</td><td style="color:var(--ink-3);font-size:12px">'+f.path+'</td></tr>';
+    tb.innerHTML+='<tr><td style="color:var(--ink-3);font-size:12px">'+esc(f.chat_id)+'</td><td>'+esc(f.name)+'</td><td>'+esc(f.size_str)+'</td><td style="color:var(--ink-3);font-size:12px">'+esc(f.media_type||'-')+'</td><td style="color:var(--ink-3)">'+esc(f.mtime_str)+'</td><td style="color:var(--ink-3);font-size:12px">'+esc(f.path)+'</td></tr>';
   });
 }
 function hPage(d){_hPg=Math.max(1,_hPg+d);hLoad();}

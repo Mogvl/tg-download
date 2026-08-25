@@ -1,6 +1,5 @@
 """web ui for media download"""
 
-import glob
 import logging
 import os
 import secrets
@@ -194,12 +193,15 @@ def get_app_version():
 @login_required
 def web_get_completion_status():
     """返回下载完成状态"""
-    from media_downloader import _all_downloads_done, app as _app
-    chat_count = len(_app.chat_download_config)
-    total = sum(v.total_task for v in _app.chat_download_config.values())
-    finished = sum(v.finish_task for v in _app.chat_download_config.values())
+    try:
+        from media_downloader import _all_downloads_done
+    except ImportError:
+        _all_downloads_done = False
+    chat_count = len(_app.chat_download_config) if _app else 0
+    total = sum(v.total_task for v in _app.chat_download_config.values()) if _app else 0
+    finished = sum(v.finish_task for v in _app.chat_download_config.values()) if _app else 0
     return jsonify({
-        "done": _all_downloads_done and chat_count > 0,
+        "done": bool(_all_downloads_done) and chat_count > 0,
         "total": total,
         "finished": finished,
         "chat_count": chat_count,

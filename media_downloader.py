@@ -421,6 +421,15 @@ async def download_media(
                             f"id={message.id} {ui_file_name} "
                             f"{_t('already download,download skipped')}.\n"
                         )
+                        # 已存在的文件也补录到数据库，保证历史完整
+                        db.record_download(
+                            chat_id=node.chat_id,
+                            message_id=message.id,
+                            file_name=ui_file_name,
+                            file_size=file_size or media_size,
+                            file_path=file_name,
+                            media_type=_type if _type else "",
+                        )
 
                         return DownloadStatus.SkipDownload, None
             else:

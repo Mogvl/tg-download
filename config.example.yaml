@@ -90,3 +90,7 @@ upload_drive:
 #   port: 7890
 #   username: ""               # 无认证则删除这两行
 #   password: ""
+
+# ---- 内部字段（勿手动设置）----
+# 应用退出前自动重置为 false；Web 界面「保存并重启」会临时写 true 触发一次重启
+restart_program: false

@@ -1000,6 +1000,9 @@ class MediaDownloaderTestCase(unittest.TestCase):
     @mock.patch("media_downloader.logger")
     def test_main_with_bot(self, mock_logger):
         rest_app(MOCK_CONF)
+        # 新行为：有配置频道时主循环保持运行（Web UI 常驻），
+        # 测试通过 restart_program 让 main() 在保存配置后退出
+        app.restart_program = True
 
         main()
 
