@@ -590,8 +590,8 @@ function pollLog(){
   if(_logListMode)renderLogTable();
 }
 function renderLogTable(){
-  // 列表视图：从下载历史库取结构化数据，渲染 5 列表格
-  var x=new XMLHttpRequest();x.open('GET','get_history?page=1&per_page=200&media_type=All',false);x.send();
+  // 列表视图：从下载历史库取结构化数据，渲染 5 列表格（最近 50 条）
+  var x=new XMLHttpRequest();x.open('GET','get_history?page=1&per_page=50&media_type=All',false);x.send();
   var d=JSON.parse(x.responseText);
   var tb=document.getElementById('log-list-body');
   if(!d.files||!d.files.length){tb.innerHTML='<tr><td colspan="5" class="empty">暂无记录</td></tr>';return;}
