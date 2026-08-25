@@ -46,9 +46,12 @@
     .chips label:has(input:checked) { border-color:var(--mist-violet); background:rgba(203,180,236,.12); color:var(--ink); }
     .chips input { display:none; }
     /* chat card */
-    .cc { display:flex; align-items:center; gap:8px; padding:8px 12px; margin-bottom:6px; border-radius:10px; background:rgba(255,255,255,.35); border:1px solid var(--hairline); }
+    .cc { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 12px; margin-bottom:6px; border-radius:10px; background:rgba(255,255,255,.35); border:1px solid var(--hairline); }
     .cc input { flex:1; height:32px; border:1px solid var(--hairline); border-radius:8px; padding:0 10px; font-size:12.5px; background:rgba(255,255,255,.5); color:var(--ink); outline:none; }
     .cc input:focus { border-color:var(--mist-violet); }
+    .cc .cid { flex:0 1 240px; }
+    .cc .clr { flex:0 1 130px; }
+    .cc .cnote { flex:1 1 160px; min-width:160px; }
     .cc .x { width:26px; height:26px; border:none; border-radius:7px; cursor:pointer; background:rgba(239,68,68,.06); color:#d4748a; font-size:13px; display:flex; align-items:center; justify-content:center; }
     .cc .x:hover { background:rgba(239,68,68,.12); }
     .cc .mv { width:26px; height:26px; border:none; border-radius:7px; cursor:pointer; background:rgba(178,138,222,.08); color:#9b7bc8; font-size:13px; display:flex; align-items:center; justify-content:center; }
@@ -606,8 +609,10 @@ function addChat(ch){
   var d=document.createElement('div');d.className='cc';
   var cid=esc(ch.chat_id||'');
   var clr=esc(ch.last_read_message_id||0);
+  var nte=esc(ch.note||'');
   d.innerHTML='<input class="cid" placeholder="chat_id（me / @channel / -100xxx）" value="'+cid+'">'
-    +'<input class="clr" type="number" placeholder="last_read_msg_id" value="'+clr+'" style="max-width:160px">'
+    +'<input class="clr" type="number" placeholder="last_read_msg_id" value="'+clr+'" style="max-width:140px">'
+    +'<input class="cnote" type="text" placeholder="备注（可选）" value="'+nte+'" style="flex:1;min-width:120px">'
     +'<button class="mv" onclick="moveChat(this,1)" title="上移">↑</button>'
     +'<button class="mv" onclick="moveChat(this,-1)" title="下移">↓</button>'
     +'<button class="x" onclick="this.parentNode.remove()">×</button>';
@@ -632,7 +637,11 @@ function saveCfg(restart){
   var chats=[];
   document.querySelectorAll('#c-chats .cc').forEach(function(el){
     var id=el.querySelector('.cid').value.trim();
-    if(id)chats.push({chat_id:/^\d+$/.test(id)?parseInt(id):id,last_read_message_id:parseInt(el.querySelector('.clr').value)||0});
+    if(id)chats.push({
+      chat_id:/^\d+$/.test(id)?parseInt(id):id,
+      last_read_message_id:parseInt(el.querySelector('.clr').value)||0,
+      note:el.querySelector('.cnote')?el.querySelector('.cnote').value.trim():''
+    });
   });
   var p={
     api_id:parseInt(document.getElementById('c-apid').value)||null,
