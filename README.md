@@ -229,6 +229,29 @@ tg-download/
 
 ---
 
+## Web UI 登录开关
+
+Web UI 默认**免登录直接进主页**。如需保护界面，可开启登录密码：
+
+```yaml
+# config.yaml
+web_login_enabled: true        # true=必须输入密码登录；false/留空=免登录直进主页
+web_login_secret: wyc1018      # 仅当 web_login_enabled: true 时生效；留空则任何密码都被拒绝
+```
+
+| 配置 | 效果 |
+|------|------|
+| `web_login_enabled: false`（默认） | 免登录，直接进主页 |
+| `web_login_enabled: true` + 已设密码 | 访问 Web UI 必须输入密码 |
+| `web_login_enabled: true` + 密码为空 | 仍弹登录页，但任何密码都拒绝（防止「开了却裸奔」） |
+
+> 密码 `wyc1018` 这类纯字母数字值，**加不加双引号都等价**（`"wyc1018"` 与 `wyc1018` 解析结果相同）。
+> 程序在退出/保存时会用 ruamel.yaml 重新序列化 `config.yaml`，手写双引号可能被规范化去掉，这不影响密码生效。
+
+> **开关实时生效**：登录状态在每个请求前按磁盘上的 `web_login_enabled` 实时判定。改完 `config.yaml` 后**重启容器**即可，无需手动改其它文件。
+
+---
+
 ## 代理设置
 
 如果需要代理，在 `config.yaml` 中添加：
@@ -249,9 +272,14 @@ proxy:
 ```bash
 cd /volume1/docker/tg-download
 git pull
+# 关键：拉取包含最新代码的新镜像，否则容器仍跑旧逻辑（如登录开关不生效）
+docker compose pull
 docker compose down
 docker compose up -d
 ```
+
+> 若 `docker-compose.yml` 使用的是 `build: .`（本地构建），把 `docker compose pull` 换成：
+> `docker compose up -d --build`
 
 ---
 
