@@ -49,6 +49,29 @@ git clone https://github.com/Mogvl/tg-download.git .
 - `config.yaml`（由 `config.example.yaml` 复制而来）
 - `data.yaml`（由 `data.example.yaml` 复制而来）
 
+`docker-compose.yml` 内容：
+
+```yaml
+version: "3.8"
+
+services:
+  tg-download:
+    image: ghcr.io/mogvl/tg-download:latest
+    container_name: tg-download
+    ports:
+      - "14087:5000"
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - /volume1/docker/tg-download/config.yaml:/app/config.yaml
+      - /volume1/docker/tg-download/data.yaml:/app/data.yaml
+      - /volume1/dockerdn/tg:/app/downloads
+      - ./sessions:/app/sessions
+      - ./log:/app/log
+      - ./temp:/app/temp
+    restart: unless-stopped
+```
+
 #### 4. 修改配置文件
 
 ```bash
