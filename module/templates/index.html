@@ -348,7 +348,7 @@ layui.use(['table','element'],function(){
               +'<td data-field="filename"><div class="layui-table-cell">'+esc(res[i].filename)+'</div></td>'
               +'<td data-field="total_size"><div class="layui-table-cell">'+esc(res[i].total_size)+'</div></td>'
               +'<td data-field="download_progress"><div class="layui-table-cell"><div class="layui-progress layui-progress-big" lay-showpercent="true"><div class="layui-progress-bar layui-bg-blue" style="width:'+res[i].download_progress+'%"><span class="layui-progress-text">'+res[i].download_progress+'%</span></div></div></div></td>'
-              +'<td data-field="download_speed"><div class="layui-table-cell">'+res[i].download_speed+'</div></td></tr>');
+              +'<td data-field="download_speed" data-key="1-0-5"><div class="layui-table-cell laytable-cell-1-0-5">'+esc(res[i].download_speed)+'</div></td></tr>');
           }
         }
         tb.find('tr').each(function(){var idx=$(this).attr('data-index');if(idx&&!ids[idx])$(this).remove();});
