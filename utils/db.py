@@ -102,3 +102,43 @@ def clear_history():
             c.execute("DELETE FROM download_history")
     except Exception as e:
         logger.error(f"清空历史失败: {e}")
+
+
+def backfill_from_dir(base_dir, media_type="document"):
+    """启动时扫描下载目录，把数据库中不存在的旧文件补录进历史。
+
+    用于兼容数据库功能上线前已下载的文件。文件名+大小作为去重键。
+    """
+    if not _db_ok or not base_dir or not os.path.isdir(base_dir):
+        return 0
+    added = 0
+    try:
+        with _conn() as c:
+            existing = {
+                (r[0], r[1])
+                for r in c.execute("SELECT file_name, file_size FROM download_history").fetchall()
+            }
+            for root, _dirs, files in os.walk(base_dir):
+                for name in files:
+                    if name.startswith(".") or name.endswith((".session", ".sqlite3")):
+                        continue
+                    fpath = os.path.join(root, name)
+                    try:
+                        size = os.path.getsize(fpath)
+                    except OSError:
+                        continue
+                    if (name, size) in existing:
+                        continue
+                    rel = os.path.relpath(fpath, base_dir)
+                    mtime = os.path.getmtime(fpath)
+                    c.execute(
+                        "INSERT INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp) VALUES (?,?,?,?,?,?,?)",
+                        ("-", 0, name, size, rel, media_type, mtime),
+                    )
+                    existing.add((name, size))
+                    added += 1
+    except Exception as e:
+        logger.error(f"补录历史失败: {e}")
+    if added:
+        logger.info(f"从目录补录 {added} 个历史文件")
+    return added

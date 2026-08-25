@@ -527,6 +527,7 @@ def _check_config() -> bool:
     try:
         _load_config()
         db.init_db()
+        db.backfill_from_dir(app.save_path)
         logger.add(
             os.path.join(app.log_file_path, "tdl.log"),
             rotation="10 MB",

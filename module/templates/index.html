@@ -9,7 +9,13 @@
   <link href="static/css/index.css" rel="stylesheet">
   <style>
     body { padding: 32px 24px 120px; }
-    /* ── 标签页切换 ── */
+    /* ── 进度条统一渲染 ── */
+function pbarHtml(pct){
+  var cls=pct>=100?'pbar-green':pct>30?'pbar-violet':'pbar-pink';
+  return '<div class="pbar-wrap"><div class="pbar"><div class="pbar-fill '+cls+'" style="width:'+pct+'%"></div></div><span class="pbar-pct">'+pct+'%</span></div>';
+}
+
+/* ── 标签页切换 ── */
     .tg-glass > section { display:none; }
     .tg-glass > section.on { display:block; }
     .nav { display:flex; gap:6px; margin-bottom:28px; border-bottom:1px solid var(--hairline); padding-bottom:12px; }
@@ -88,6 +94,17 @@
     .log-level.WARNING { background:rgba(240,196,214,.2); color:#c47a8e; }
     .log-level.ERROR { background:rgba(239,68,68,.1); color:#c45a5a; }
     .log-msg { color:var(--ink); flex:1; word-break:break-all; }
+    /* 进度条：加高+深色可读 */
+    .pbar-wrap { display:flex; align-items:center; gap:10px; width:100%; }
+    .pbar { flex:1; height:12px; border-radius:999px; background:rgba(122,96,158,.14); overflow:hidden; position:relative; }
+    .pbar-fill { height:100%; border-radius:999px; transition:width .5s var(--ease); position:relative; }
+    .pbar-fill::after { content:""; position:absolute; top:0; left:0; right:0; height:45%;
+      border-radius:999px 999px 0 0; background:linear-gradient(180deg,rgba(255,255,255,.35),transparent); }
+    .pbar-violet { background:linear-gradient(90deg,#a78bfa,#8b5cf6); box-shadow:0 1px 6px rgba(139,92,246,.35); }
+    .pbar-pink   { background:linear-gradient(90deg,#f472b6,#ec4899); box-shadow:0 1px 6px rgba(236,72,153,.30); }
+    .pbar-green  { background:linear-gradient(90deg,#34d399,#10b981); box-shadow:0 1px 6px rgba(16,185,129,.28); }
+    .pbar-pct { font-size:12.5px; font-weight:600; color:var(--ink); min-width:46px; text-align:right;
+      font-variant-numeric:tabular-nums; }
     /* ── 历史 ── */
     .hs { display:flex; gap:10px; margin-bottom:18px; }
     .hs input { flex:1; height:38px; padding:0 12px; border:1px solid var(--hairline); border-radius:10px; background:rgba(255,255,255,.55); font-size:13px; color:var(--ink); outline:none; }
@@ -258,6 +275,11 @@
         <option value="voice">语音</option>
         <option value="animation">动图</option>
       </select>
+      <select id="h-pps" onchange="hPgReset()" style="height:38px;padding:0 10px;border:1px solid var(--hairline);border-radius:10px;background:rgba(255,255,255,.55);font-size:12.5px;color:var(--ink);outline:none;">
+        <option value="10">10条/页</option>
+        <option value="20" selected>20条/页</option>
+        <option value="50">50条/页</option>
+      </select>
       <button onclick="hLoad()">搜索</button>
       <button onclick="hClear()" style="background:none;border:1px solid var(--hairline);color:var(--ink-3);font-size:12px">清空</button>
     </div>
@@ -280,6 +302,12 @@
 var _logAuto=true, _hPg=1, _hT=0, _logTmr=null, _logListMode=true;
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200);}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+/* ── 进度条统一渲染 ── */
+function pbarHtml(pct){
+  var cls=pct>=100?'pbar-green':pct>30?'pbar-violet':'pbar-pink';
+  return '<div class="pbar-wrap"><div class="pbar"><div class="pbar-fill '+cls+'" style="width:'+pct+'%"></div></div><span class="pbar-pct">'+pct+'%</span></div>';
+}
 
 /* ── 标签页切换 ── */
 var _dlTableReady=false;
@@ -312,8 +340,7 @@ layui.use(['table','element'],function(){
       {field:'filename',title:'文件名'},
       {field:'total_size',title:'大小',width:90},
       {field:'download_progress',title:'进度',templet:function(d){
-        var c=d.download_progress==100?'layui-bg-green':d.download_progress>30?'layui-bg-blue':'layui-bg-red';
-        return '<div class="layui-progress layui-progress-big" lay-showpercent="true"><div class="layui-progress-bar '+c+'" lay-percent="'+d.download_progress+'%"></div></div>';
+        return pbarHtml(d.download_progress);
       }},
       {field:'download_speed',title:'速度',width:100}
     ]],done:function(){el.render();}
@@ -340,6 +367,13 @@ layui.use(['table','element'],function(){
           var k=res[i].chat+'-'+res[i].id;ids[k]=true;
           var ex=tb.find('tr[data-index="'+k+'"]');
           if(ex.length){
+            var fill=ex.find('.pbar-fill'), pct=ex.find('.pbar-pct');
+            if(fill.length){
+              var cls=res[i].download_progress>=100?'pbar-green':res[i].download_progress>30?'pbar-violet':'pbar-pink';
+              fill.removeClass('pbar-violet pbar-pink pbar-green').addClass(cls);
+              fill.css('width',res[i].download_progress+'%');
+              pct.text(res[i].download_progress+'%');
+            }
             if(res[i].download_progress>=100)ex.remove();
           } else if(res[i].download_progress<100){
             tb.append('<tr data-index="'+esc(k)+'">'
@@ -347,7 +381,7 @@ layui.use(['table','element'],function(){
               +'<td data-field="id" data-key="1-0-1"><div class="layui-table-cell laytable-cell-1-0-1">'+esc(res[i].id)+'</div></td>'
               +'<td data-field="filename" data-key="1-0-2"><div class="layui-table-cell laytable-cell-1-0-2">'+esc(res[i].filename)+'</div></td>'
               +'<td data-field="total_size" data-key="1-0-3"><div class="layui-table-cell laytable-cell-1-0-3">'+esc(res[i].total_size)+'</div></td>'
-              +'<td data-field="download_progress" data-key="1-0-4"><div class="layui-table-cell laytable-cell-1-0-4"><div class="layui-progress layui-progress-big" lay-showpercent="true"><div class="layui-progress-bar layui-bg-blue" style="width:'+res[i].download_progress+'%"><span class="layui-progress-text">'+res[i].download_progress+'%</span></div></div></div></td>'
+              +'<td data-field="download_progress" data-key="1-0-4"><div class="layui-table-cell laytable-cell-1-0-4">'+pbarHtml(res[i].download_progress)+'</div></td>'
               +'<td data-field="download_speed" data-key="1-0-5"><div class="layui-table-cell laytable-cell-1-0-5">'+esc(res[i].download_speed)+'</div></td></tr>');
           }
         }
@@ -552,10 +586,11 @@ function logModeToggle(){
 function hLoad(){
   var q=encodeURIComponent(document.getElementById('h-q').value||'');
   var t=document.getElementById('h-type').value;
-  var x=new XMLHttpRequest();x.open('GET','get_history?page='+_hPg+'&per_page=30&search='+q+'&media_type='+t,false);x.send();
+  var pps=parseInt(document.getElementById('h-pps').value)||20;
+  var x=new XMLHttpRequest();x.open('GET','get_history?page='+_hPg+'&per_page='+pps+'&search='+q+'&media_type='+t,false);x.send();
   var d=JSON.parse(x.responseText);
   _hT=d.total;
-  var pg=Math.max(1,Math.ceil(d.total/30));
+  var pg=Math.max(1,Math.ceil(d.total/pps));
   document.getElementById('h-info').textContent=_hPg+' / '+pg+'  ·  '+d.total+' 条';
   document.getElementById('h-prev').disabled=_hPg<=1;
   document.getElementById('h-next').disabled=_hPg>=pg;
@@ -565,7 +600,13 @@ function hLoad(){
     tb.innerHTML+='<tr><td style="color:var(--ink-3);font-size:12px">'+esc(f.chat_id)+'</td><td>'+esc(f.name)+'</td><td>'+esc(f.size_str)+'</td><td style="color:var(--ink-3);font-size:12px">'+esc(f.media_type||'-')+'</td><td style="color:var(--ink-3)">'+esc(f.mtime_str)+'</td><td style="color:var(--ink-3);font-size:12px">'+esc(f.path)+'</td></tr>';
   });
 }
-function hPage(d){_hPg=Math.max(1,_hPg+d);hLoad();}
+function hPage(d){
+    var pps=parseInt(document.getElementById('h-pps').value)||20;
+    if(d===-1)_hPg=Math.max(1,_hPg-1);
+    else if(d===1)_hPg=Math.min(Math.max(1,Math.ceil(_hT/pps)),_hPg+1);
+    hLoad();
+  }
+  function hPgReset(){_hPg=1;hLoad();}
 function hClear(){
   if(!confirm('确定清空所有下载历史？'))return;
   var x=new XMLHttpRequest();x.open('POST','clear_history',false);x.send();
