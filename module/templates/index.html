@@ -423,6 +423,14 @@ function logName(f){
   }
   return base;
 }
+/* 只显示原名（去掉「发布时间 - 」前缀） */
+function logNameOrig(f){
+  var raw=String(f.name||'');
+  var base=raw.lastIndexOf('/')>=0?raw.substring(raw.lastIndexOf('/')+1):raw.lastIndexOf('\\')>=0?raw.substring(raw.lastIndexOf('\\')+1):raw;
+  // 剥离形如 2020-08-01_00-00 - 的前缀
+  base=base.replace(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}\s*-\s*/, '');
+  return base;
+}
 
 /* ── 进度条统一渲染 ── */
 function pbarHtml(pct){
@@ -748,7 +756,7 @@ function renderLogTable(){
           +'<td>'+esc(ext)+'</td>'
           +'<td>'+st+'</td>'
           +'<td>'+esc(up)+'</td>'
-          +'<td class="log-fname">'+esc(logName(f))+'</td>'
+          +'<td class="log-fname">'+esc(logNameOrig(f))+'</td>'
           +'</tr>';
       });
       tb.innerHTML=html;
