@@ -515,6 +515,9 @@ layui.use(['table','element'],function(){
               fill.css('width',res[i].download_progress+'%');
               pct.text(res[i].download_progress+'%');
             }
+            // 更新速度列（修复：之前只更新进度条，速度一直是初始值）
+            var spd=ex.find('.laytable-cell-1-0-3');
+            if(spd.length){spd.text(res[i].download_speed);}
             // 更新状态徽章
             var st=ex.find('.st-badge');
             if(st.length){
