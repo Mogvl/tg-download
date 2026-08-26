@@ -573,7 +573,7 @@ function loadAlreadyFromDisk(){
   _ddTotal=d.total||0;
   var rows=[];
   (d.files||[]).forEach(function(f){
-    rows.push({id:f.name,filename:logName(f),total_size:f.size_str,save_path:f.path});
+    rows.push({id:f.name,filename:logNameOrig(f),total_size:f.size_str,save_path:f.path});
   });
   layui.table.reload('already_download_list',{data:rows,height: Math.min(rows.length*42+50, 420)});
   document.getElementById('dl-empty-done').className = rows.length ? 'dl-empty' : 'dl-empty show';
@@ -801,7 +801,7 @@ function hLoad(){
     var ext=(f.name.split('.').pop()||'').toUpperCase();
     var st=f.status==='failed'?'<span class="st-fail">失败</span>':f.status==='skip'?'<span class="st-skip">跳过</span>':'<span class="st-ok">成功</span>';
     var up=f.publish_time_str||'-';
-    html+='<tr><td>'+esc(f.mtime_str)+'</td><td>'+esc(ext)+'</td><td>'+st+'</td><td>'+esc(up)+'</td><td class="log-fname">'+esc(logName(f))+'</td></tr>';
+    html+='<tr><td>'+esc(f.mtime_str)+'</td><td>'+esc(ext)+'</td><td>'+st+'</td><td>'+esc(up)+'</td><td class="log-fname">'+esc(logNameOrig(f))+'</td></tr>';
   });
   tb.innerHTML=html;
 }
