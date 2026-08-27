@@ -502,7 +502,7 @@ layui.use(['table','element'],function(){
   _dlTableReady=true;
 
   /* ── 轮询下载列表 ── */
-  var _speedCache={}; // {chat+id: {down_byte, time}}
+  var _speedCache={}; // {chat+id: {hist:[{t,b}], speed}}
   setInterval(function(){
     $.ajax({url:'get_download_list?already_down=false',type:'get',dataType:'json',
       success:function(res){
@@ -512,18 +512,18 @@ layui.use(['table','element'],function(){
           var k=x.chat+'-'+x.id; activeKeys[k]=true;
           var prev=_speedCache[k];
           if(prev){
-            // 记录当前采样点 (time, down_byte)
+            // 记录采样点，保留最近约 8 秒
             if(x.down_byte!==undefined){
               prev.hist.push({t:now, b:x.down_byte});
-              // 窗口: 保留最近约 10 秒的数据
-              while(prev.hist.length>1 && now-prev.hist[0].t>10000)prev.hist.shift();
-              // 滑动窗口平均速度 = (最新字节 - 窗口起点字节) / 时间差
+              while(prev.hist.length>1 && now-prev.hist[0].t>8000)prev.hist.shift();
+              // 用窗口内增长最快的相邻段计算速度，避免窗口过长把速度平均低
               if(prev.hist.length>=2){
                 var first=prev.hist[0], last=prev.hist[prev.hist.length-1];
                 var dt=(last.t-first.t)/1000;
                 if(dt>0.3){
                   var diff=last.b-first.b;
-                  prev.speed=diff/dt;
+                  // 若最近无增长（down_byte 未变），保留上次速度，不归零
+                  if(diff>0){prev.speed=diff/dt;}
                 }
               }
             }
@@ -532,7 +532,7 @@ layui.use(['table','element'],function(){
             }
           }
           if(!prev){
-            // 新任务：初始速度取后端已有值，避免首轮闪 0
+            // 新任务：初始速度取后端已有值
             var initSpeed=0;
             var m=String(x.download_speed||'').match(/([\d.]+)\s*([KMGTP]?B)\/s/);
             if(m){initSpeed=parseFloat(m[1])*({'B':1,'KB':1024,'MB':1024*1024,'GB':1024*1024*1024}[m[2]]||1);}
