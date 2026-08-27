@@ -85,7 +85,11 @@ def run_web_server(app: Application):
 def _login_enabled() -> bool:
     """登录开关是否开启（运行时实时从磁盘 yaml 读取，不依赖内存快照）"""
     cfg = _read_config()
-    return bool(cfg.get("web_login_enabled", False))
+    raw = cfg.get("web_login_enabled", False)
+    # 字符串 "false" 不能 bool()（bool("false")=True）
+    if isinstance(raw, str):
+        return raw.strip().lower() == "true"
+    return bool(raw)
 
 
 def _current_secret() -> str:

@@ -523,9 +523,10 @@ class Application:
             "after_upload_telegram_delete", self.after_upload_telegram_delete
         )
 
-        self.web_login_secret = str(
-            _config.get("web_login_secret", self.web_login_secret)
-        )
+        raw_secret = _config.get("web_login_secret", self.web_login_secret)
+        # None/空值保持空字符串，避免 str(None)="None"(truthy) 导致
+        # init_web 用可预测密钥、登录逻辑混乱
+        self.web_login_secret = str(raw_secret) if raw_secret else ""
         # 显式登录开关（缺失或为空时视为关闭，免登录直进主页）
         # 注意：不能用 bool() 直接转换，因为 YAML 中 "false"（带引号字符串）
         # 在 Python 中 bool("false") = True，会导致登录意外开启
@@ -926,6 +927,14 @@ class Application:
 
         self.config["save_path"] = self.save_path
         self.config["file_path_prefix"] = self.file_path_prefix
+
+        # 兼容旧版顶层 chat_id 配置：转换为新版 chat 列表，避免 pop 后频道配置丢失
+        if not self.config.get("chat") and self.config.get("chat_id"):
+            old_cid = self.config.pop("chat_id", None)
+            if old_cid is not None:
+                self.config["chat"] = [
+                    {"chat_id": old_cid, "last_read_message_id": 0}
+                ]
 
         if self.config.get("ids_to_retry"):
             self.config.pop("ids_to_retry")
