@@ -516,8 +516,9 @@ layui.use(['table','element'],function(){
     $.ajax({url:'get_download_list?already_down=false',type:'get',dataType:'json',
       success:function(res){
         var now=Date.now();
+        var activeKeys={};
         res.forEach(function(x){
-          var k=x.chat+'-'+x.id;
+          var k=x.chat+'-'+x.id; activeKeys[k]=true;
           var prev=_speedCache[k];
           if(prev){
             if(x.down_byte!==undefined && x.down_byte!==prev.down_byte){
@@ -537,8 +538,16 @@ layui.use(['table','element'],function(){
               x.download_speed=formatByte(prev.speed)+'/s';
             }
           }
-          if(!prev){_speedCache[k]={down_byte:x.down_byte, time:now, speed:0};}
+          if(!prev){
+            // 新任务：初始速度取后端已有值，避免首轮闪 0
+            var initSpeed=0;
+            var m=String(x.download_speed||'').match(/([\d.]+)\s*([KMGTP]?B)\/s/);
+            if(m){initSpeed=parseFloat(m[1])*({'B':1,'KB':1024,'MB':1024*1024,'GB':1024*1024*1024}[m[2]]||1);}
+            _speedCache[k]={down_byte:x.down_byte, time:now, speed:initSpeed};
+          }
         });
+        // 清理不再活跃的 cache 条目，防止内存泄漏
+        Object.keys(_speedCache).forEach(function(k){if(!activeKeys[k])delete _speedCache[k];});
         // 用 layui table.reload 全量刷新
         var rows=res.filter(function(x){return x.download_progress<100;});
         table.reload('download_list',{data:rows});
