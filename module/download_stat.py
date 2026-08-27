@@ -36,10 +36,21 @@ def get_download_result() -> dict:
 def get_total_download_speed() -> int:
     """get total download speed
 
-    独立计算的全局速度：累加所有任务每次回调增量，每秒窗口更新一次。
-    不依赖每行速度（每行速度可能因回调慢而滞后），
-    多任务错峰回调时总速度每秒都在变，真实反映总体吞吐量。
+    独立计算的全局速度：累加所有任务每次回调增量，按 1 秒窗口更新。
+    读取时主动刷新窗口（不依赖回调触发），保证前端每次轮询都能拿到最新值。
     """
+    global _total_download_speed, _total_download_size, _last_download_time
+    now = time.time()
+    dt = now - _last_download_time
+    if dt >= 1.0:
+        if _total_download_size > 0:
+            _total_download_speed = int(_total_download_size / dt)
+            _total_download_speed = max(_total_download_speed, 0)
+            _total_download_size = 0
+            _last_download_time = now
+        else:
+            # 窗口内无新数据：保留上次速度（不闪 0，慢速下载时稳定显示）
+            _last_download_time = now
     return _total_download_speed
 
 
@@ -126,12 +137,5 @@ async def update_download_status(
         # 限制每个 chat 的条目数，防止内存无限增长
         while len(_download_result[chat_id]) > _MAX_RESULT_PER_CHAT:
             _download_result[chat_id].popitem(last=False)
-
-    # 全局总速度：每秒窗口更新一次（独立于每行速度，多任务错峰回调时每秒都在变）
-    if cur_time - _last_download_time >= 1.0:
-        _total_download_speed = int(
-            _total_download_size / (cur_time - _last_download_time)
-        )
-        _total_download_speed = max(_total_download_speed, 0)
-        _total_download_size = 0
-        _last_download_time = cur_time
+    # 窗口刷新统一由 get_total_download_speed() 读取时执行，
+    # 避免回调驱动与读取驱动重复清零 _total_download_size
