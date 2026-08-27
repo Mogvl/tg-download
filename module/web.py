@@ -344,8 +344,9 @@ def get_download_list():
 
     download_result = get_download_result()
     items = []
-    for chat_id, messages in download_result.items():
-        for idx, value in messages.items():
+    # 快照迭代,避免并发修改 RuntimeError
+    for chat_id, messages in list(download_result.items()):
+        for idx, value in list(messages.items()):
             total_size = value.get("total_size") or 0
             down_byte = value.get("down_byte") or 0
             is_already_down = down_byte == total_size
