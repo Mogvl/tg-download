@@ -415,6 +415,14 @@
 var _logAuto=true, _hPg=1, _hT=0, _logTmr=null, _logListMode=true;
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200);}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;');}
+/* 字节格式化（前端版，对应后端 format_byte） */
+function formatByte(b){
+  if(b==null||b<0)return '0 B';
+  var u=['B','KB','MB','GB','TB','PB'];
+  var i=0;
+  while(b>=1024&&i<u.length-1){b/=1024;i++;}
+  return (i===0?Math.round(b):Math.round(b*10)/10)+' '+u[i];
+}
 /* 日志/历史表格文件名统一显示：发布时间 - 原名（去路径，不重复拼接） */
 function logName(f){
   var raw=String(f.name||'');
@@ -502,10 +510,25 @@ layui.use(['table','element'],function(){
   _dlTableReady=true;
 
   /* ── 轮询下载列表 ── */
+  var _speedCache={}; // {chat+id: {down_byte, time}}
   setInterval(function(){
     $.ajax({url:'get_download_list?already_down=false',type:'get',dataType:'json',
       success:function(res){
-        // 用 layui table.reload 全量刷新（最可靠，避免手写 DOM 增量更新错位/卡死）
+        var now=Date.now();
+        res.forEach(function(x){
+          var k=x.chat+'-'+x.id;
+          var prev=_speedCache[k];
+          if(prev && prev.down_byte!==undefined && x.down_byte!==undefined){
+            var dt=(now-prev.time)/1000;
+            if(dt>0.5){
+              var diff=x.down_byte-prev.down_byte;
+              var bps=diff/dt;
+              x.download_speed=formatByte(bps)+'/s';
+            }
+          }
+          _speedCache[k]={down_byte:x.down_byte, time:now};
+        });
+        // 用 layui table.reload 全量刷新
         var rows=res.filter(function(x){return x.download_progress<100;});
         table.reload('download_list',{data:rows});
         document.getElementById('dl-empty-active').className = rows.length ? 'dl-empty' : 'dl-empty show';

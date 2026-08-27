@@ -359,6 +359,7 @@ def get_download_list():
                 "total_size": format_byte(total_size),
                 "download_progress": progress,
                 "download_speed": format_byte(value.get("download_speed") or 0) + "/s",
+                "down_byte": int(down_byte),   # 原始字节，前端据此计算实时速度
                 "save_path": (value.get("file_name") or "").replace("\\", "/"),
                 "ftype": _guess_ftype(value.get("file_name") or ""),
             })
