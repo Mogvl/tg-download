@@ -217,26 +217,28 @@ def backfill_from_dir(base_dir, media_type="document"):
 
 
 def _dedup_backfill_duplicates():
-    """删除历史补录残留：chat_id="-" 且与真实下载记录(file_name+file_size)重复的行"""
+    """删除历史补录残留：chat_id="-" 且与真实下载记录同 file_name 的行"""
     if not _db_ok:
         return 0
     try:
         with _get_lock():
             with _conn() as c:
-                # 找到真实下载记录(chat_id != '-')的 (file_name, file_size)
-                real = {
-                    (r[0], r[1])
+                # 找到真实下载记录(chat_id != '-')的 file_name 集合
+                # 以 file_name 为主键（忽略 file_size，因为 backfill 补录的 size
+                # 可能与 record_download 的 media_size 有差异，导致 (name,size) 匹配不上）
+                real_names = {
+                    r[0]
                     for r in c.execute(
-                        "SELECT file_name, file_size FROM download_history WHERE chat_id != '-'"
+                        "SELECT file_name FROM download_history WHERE chat_id != '-'"
                     ).fetchall()
                 }
-                if not real:
+                if not real_names:
                     return 0
-                # 删除补录行(chat_id='-')中与真实记录重复的
+                # 删除补录行(chat_id='-')中与真实记录 file_name 相同的行
                 cur = c.execute(
-                    "SELECT id, file_name, file_size FROM download_history WHERE chat_id = '-'"
+                    "SELECT id, file_name FROM download_history WHERE chat_id = '-'"
                 ).fetchall()
-                del_ids = [r[0] for r in cur if (r[1], r[2]) in real]
+                del_ids = [r[0] for r in cur if r[1] in real_names]
                 for did in del_ids:
                     c.execute("DELETE FROM download_history WHERE id = ?", (did,))
                 if del_ids:
