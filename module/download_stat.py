@@ -32,8 +32,12 @@ def get_download_result() -> dict:
 
 
 def get_total_download_speed() -> int:
-    """get total download speed"""
-    return _total_download_speed
+    """get total download speed = 各任务速度之和（与列表每行速度完全对应）"""
+    total = 0
+    for chat_tasks in _download_result.values():
+        for task in chat_tasks.values():
+            total += task.get("download_speed", 0)
+    return total
 
 
 def get_download_state() -> DownloadState:
