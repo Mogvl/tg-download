@@ -287,8 +287,11 @@
           <span>实时下载</span>
           <span class="dl-badge" id="dl-done-badge" style="display:none">✓ 全部完成</span>
         </div>
-        <button class="stop-btn" id="download_state" data-value="{{ download_state }}"
-          onclick="dlToggle(this)">{{ {'pause':'暂停','continue':'继续'}[download_state] }}</button>
+        <div style="display:flex;align-items:center;gap:14px">
+          <span style="font-size:11px;color:var(--ink-3)" id="dl-sum-speed">各任务合计: 0.00 B/s</span>
+          <button class="stop-btn" id="download_state" data-value="{{ download_state }}"
+            onclick="dlToggle(this)">{{ {'pause':'暂停','continue':'继续'}[download_state] }}</button>
+        </div>
       </div>
       <div id="dl-active-wrap">
         <table class="layui-hide" id="download_list" lay-filter="download_list"></table>
@@ -539,7 +542,11 @@ layui.use(['table','element'],function(){
         document.getElementById('dl-empty-active').className = tb.find('tr').length ? 'dl-empty' : 'dl-empty show';
       }});
     $.ajax({url:'get_download_status',type:'get',dataType:'json',
-      success:function(r){document.getElementById('download_speed_title').textContent=r.download_speed;}});
+      success:function(r){
+        document.getElementById('download_speed_title').textContent=r.download_speed;
+        var sumEl=document.getElementById('dl-sum-speed');
+        if(sumEl&&r.sum_speed)sumEl.textContent='各任务合计: '+r.sum_speed;
+      }});
     // 统计概览 + 完成状态
     $.ajax({url:'get_completion_status',type:'get',dataType:'json',
       success:function(r){

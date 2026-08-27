@@ -260,8 +260,18 @@ def index():
 @login_required
 def get_download_speed():
     """Get download speed"""
+    from module.download_stat import get_download_result
+    from utils.format import format_byte, get_byte_from_str
+
+    total_speed = get_total_download_speed()
+    # 各任务速度之和（用于对比总速度是否有偏差）
+    sum_speed = 0
+    for chat_tasks in get_download_result().values():
+        for task in chat_tasks.values():
+            sum_speed += task.get("download_speed", 0)
     return jsonify({
-        "download_speed": format_byte(get_total_download_speed()) + "/s",
+        "download_speed": format_byte(total_speed) + "/s",
+        "sum_speed": format_byte(sum_speed) + "/s",
         "upload_speed": "0.00 B/s",
     })
 
