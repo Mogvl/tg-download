@@ -530,10 +530,10 @@ layui.use(['table','element'],function(){
               }
               prev.down_byte=x.down_byte;
               prev.time=now;
-            }else if(now-prev.time>5000){
-              // 超过 5 秒无数据变化，视为停止
-              prev.speed=0;
             }
+            // down_byte 无变化：保留上次速度，不归零。
+            // 慢速下载时 pyrogram 回调间隔可能 >5s，归零会导致速度周期性闪 0。
+            // 已完成任务会从 res 消失（progress>=100 被过滤），无需手动归零。
             if(prev.speed!==undefined){
               x.download_speed=formatByte(prev.speed)+'/s';
             }
