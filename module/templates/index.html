@@ -505,41 +505,10 @@ layui.use(['table','element'],function(){
   setInterval(function(){
     $.ajax({url:'get_download_list?already_down=false',type:'get',dataType:'json',
       success:function(res){
-        var tb=$('div[lay-id="download_list"] .layui-table-body .layui-table tbody');
-        var ids={};
-        for(var i=0;i<res.length;i++){
-          var k=res[i].chat+'-'+res[i].id;ids[k]=true;
-          var ex=tb.find('tr').filter(function(){return $(this).attr('data-index')===k;});
-          if(ex.length){
-            var fill=ex.find('.pbar-fill'), pct=ex.find('.pbar-pct');
-            if(fill.length){
-              var cls=res[i].download_progress>=100?'pbar-green':res[i].download_progress>30?'pbar-violet':'pbar-pink';
-              fill.removeClass('pbar-violet pbar-pink pbar-green').addClass(cls);
-              fill.css('width',res[i].download_progress+'%');
-              pct.text(res[i].download_progress+'%');
-            }
-            // 更新速度列（修复：之前只更新进度条，速度一直是初始值）
-            var spd=ex.find('.laytable-cell-1-0-3');
-            if(spd.length){spd.text(res[i].download_speed);}
-            // 更新状态徽章
-            var st=ex.find('.st-badge');
-            if(st.length){
-              var prog=res[i].download_progress;
-              var html=prog>=100?'<span class="st-badge st-done">已完成</span>':prog>0?'<span class="st-badge st-run">下载中</span>':'<span class="st-badge st-wait">排队中</span>';
-              if(prog>=100){ex.find('.st-badge').replaceWith(html);ex.css('opacity','.65');}
-            }
-            if(res[i].download_progress>=100)ex.remove();
-          } else if(res[i].download_progress<100){
-            tb.append('<tr data-index="'+esc(k)+'">'
-              +'<td data-field="filename" data-key="1-0-0"><div class="layui-table-cell laytable-cell-1-0-0"><span class="ftype ftype-'+esc(res[i].ftype)+'">'+ftypeIcon(res[i].ftype)+'</span><span class="fname">'+esc(res[i].filename)+'</span></div></td>'
-              +'<td data-field="total_size" data-key="1-0-1"><div class="layui-table-cell laytable-cell-1-0-1">'+esc(res[i].total_size)+'</div></td>'
-              +'<td data-field="download_progress" data-key="1-0-2"><div class="layui-table-cell laytable-cell-1-0-2">'+pbarHtml(res[i].download_progress)+'</div></td>'
-              +'<td data-field="download_speed" data-key="1-0-3"><div class="layui-table-cell laytable-cell-1-0-3">'+esc(res[i].download_speed)+'</div></td>'
-              +'<td data-field="status" data-key="1-0-4"><div class="layui-table-cell laytable-cell-1-0-4"><span class="st-badge st-run">下载中</span></div></td></tr>');
-          }
-        }
-        tb.find('tr').each(function(){var idx=$(this).attr('data-index');if(idx&&!ids[idx])$(this).remove();});
-        document.getElementById('dl-empty-active').className = tb.find('tr').length ? 'dl-empty' : 'dl-empty show';
+        // 用 layui table.reload 全量刷新（最可靠，避免手写 DOM 增量更新错位/卡死）
+        var rows=res.filter(function(x){return x.download_progress<100;});
+        table.reload('download_list',{data:rows});
+        document.getElementById('dl-empty-active').className = rows.length ? 'dl-empty' : 'dl-empty show';
       }});
     $.ajax({url:'get_download_status',type:'get',dataType:'json',
       success:function(r){
