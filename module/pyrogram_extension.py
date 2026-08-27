@@ -1006,7 +1006,8 @@ def record_download_status(func):
         finally:
             # 无论成功/异常，都更新缓存状态，避免异常后缓存永远卡在 Downloading
             # 导致该消息后续永远命中缓存、无法重试
-            if _download_cache.get(key) is DownloadStatus.Downloading:
+            # 注意：_download_cache 是 pyrogram 的 Cache 对象，没有 .get()，须用下标访问
+            if _download_cache[key] is DownloadStatus.Downloading:
                 _download_cache[key] = DownloadStatus.FailedDownload
 
     return inner
