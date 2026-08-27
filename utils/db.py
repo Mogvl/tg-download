@@ -179,8 +179,11 @@ def backfill_from_dir(base_dir, media_type="document"):
         return 0
     added = 0
     try:
+        # 先清理历史补录残留：删除 chat_id="-" 且与真实记录(file_name+file_size)重复的补录行
+        _dedup_backfill_duplicates()
         with _get_lock():
             with _conn() as c:
+                # 去重键：真实下载记录优先，补录记录不再重复插入同名同大小文件
                 existing = {
                     (r[0], r[1])
                     for r in c.execute("SELECT file_name, file_size FROM download_history").fetchall()
@@ -211,3 +214,34 @@ def backfill_from_dir(base_dir, media_type="document"):
     if added:
         logger.info(f"从目录补录 {added} 个历史文件")
     return added
+
+
+def _dedup_backfill_duplicates():
+    """删除历史补录残留：chat_id="-" 且与真实下载记录(file_name+file_size)重复的行"""
+    if not _db_ok:
+        return 0
+    try:
+        with _get_lock():
+            with _conn() as c:
+                # 找到真实下载记录(chat_id != '-')的 (file_name, file_size)
+                real = {
+                    (r[0], r[1])
+                    for r in c.execute(
+                        "SELECT file_name, file_size FROM download_history WHERE chat_id != '-'"
+                    ).fetchall()
+                }
+                if not real:
+                    return 0
+                # 删除补录行(chat_id='-')中与真实记录重复的
+                cur = c.execute(
+                    "SELECT id, file_name, file_size FROM download_history WHERE chat_id = '-'"
+                ).fetchall()
+                del_ids = [r[0] for r in cur if (r[1], r[2]) in real]
+                for did in del_ids:
+                    c.execute("DELETE FROM download_history WHERE id = ?", (did,))
+                if del_ids:
+                    logger.info(f"清理 {len(del_ids)} 条重复补录记录")
+                return len(del_ids)
+    except Exception as e:
+        logger.error(f"清理重复补录失败: {e}")
+        return 0
