@@ -577,22 +577,25 @@ var _ddPg=1, _ddTotal=0;
 function loadAlreadyFromDisk(){
   var pps=parseInt(document.getElementById('dl-done-pps').value)||10;
   var x=new XMLHttpRequest();
-  x.open('GET','get_history?page='+_ddPg+'&per_page='+pps,false);
+  x.open('GET','get_history?page='+_ddPg+'&per_page='+pps,true);
+  x.onreadystatechange=function(){
+    if(x.readyState!==4)return;
+    if(x.status!==200)return;
+    var d=JSON.parse(x.responseText);
+    _ddTotal=d.total||0;
+    var rows=[];
+    (d.files||[]).forEach(function(f){
+      rows.push({id:f.name,filename:logName(f),total_size:f.size_str,save_path:f.path});
+    });
+    layui.table.reload('already_download_list',{data:rows,height: Math.min(rows.length*42+50, 420)});
+    document.getElementById('dl-empty-done').className = rows.length ? 'dl-empty' : 'dl-empty show';
+    // 翻页信息
+    var pages=Math.max(1,Math.ceil(_ddTotal/pps));
+    document.getElementById('dl-done-info').textContent=_ddPg+' / '+pages+'  ·  '+_ddTotal+' 条';
+    document.getElementById('dl-done-prev').disabled=_ddPg<=1;
+    document.getElementById('dl-done-next').disabled=_ddPg>=pages;
+  };
   x.send();
-  if(x.status!==200)return;
-  var d=JSON.parse(x.responseText);
-  _ddTotal=d.total||0;
-  var rows=[];
-  (d.files||[]).forEach(function(f){
-    rows.push({id:f.name,filename:logName(f),total_size:f.size_str,save_path:f.path});
-  });
-  layui.table.reload('already_download_list',{data:rows,height: Math.min(rows.length*42+50, 420)});
-  document.getElementById('dl-empty-done').className = rows.length ? 'dl-empty' : 'dl-empty show';
-  // 翻页信息
-  var pages=Math.max(1,Math.ceil(_ddTotal/pps));
-  document.getElementById('dl-done-info').textContent=_ddPg+' / '+pages+'  ·  '+_ddTotal+' 条';
-  document.getElementById('dl-done-prev').disabled=_ddPg<=1;
-  document.getElementById('dl-done-next').disabled=_ddPg>=pages;
 }
 function dlDoneGo(dir){
   if(dir===-1){
@@ -631,30 +634,34 @@ function dlToggle(el){
 
 /* ── 配置 ── */
 function loadCfg(){
-  try{
-  var x=new XMLHttpRequest();x.open('GET','get_config',false);x.send();
-  if(x.status!==200){toast('配置加载失败: HTTP '+x.status);return;}
-  var c=JSON.parse(x.responseText);
-  document.getElementById('c-apid').value=c.api_id||'';
-  document.getElementById('c-apih').value=c.api_hash_set?c.api_hash:'';
-  document.getElementById('c-apih').placeholder=c.api_hash_set?'已设置（修改时填入新值）':'未设置';
-  document.getElementById('c-bot').value=c.bot_token||'';
-  document.querySelectorAll('#c-media input[type="checkbox"]').forEach(function(cb){
-    cb.checked=(c.media_types||[]).indexOf(cb.value)>=0;
-  });
-  document.getElementById('c-fa').value=(c.file_formats||{}).audio||'all';
-  document.getElementById('c-fv').value=(c.file_formats||{}).video||'all';
-  document.getElementById('c-fd').value=(c.file_formats||{}).document||'all';
-  document.getElementById('c-fp').value=(c.file_formats||{}).photo||'all';
-  document.getElementById('c-mt').value=c.max_download_task||5;
-  document.getElementById('c-lang').value=c.language||'EN';
-  document.getElementById('c-df').value=c.date_format||'%Y_%m';
-  document.getElementById('c-ws').value='';
-  document.getElementById('c-ws').placeholder=c.web_login_secret_set?'已设置（留空不修改）':'未设置';
-  document.getElementById('c-wle').checked=!!c.web_login_enabled;
-  var cl=document.getElementById('c-chats');cl.innerHTML='';
-  (c.chat||[]).forEach(function(ch){addChat(ch);});
-  }catch(e){toast('配置加载失败: '+e.message);}
+  var x=new XMLHttpRequest();x.open('GET','get_config',true);
+  x.onreadystatechange=function(){
+    if(x.readyState!==4)return;
+    if(x.status!==200){toast('配置加载失败: HTTP '+x.status);return;}
+    try{
+    var c=JSON.parse(x.responseText);
+    document.getElementById('c-apid').value=c.api_id||'';
+    document.getElementById('c-apih').value=c.api_hash_set?c.api_hash:'';
+    document.getElementById('c-apih').placeholder=c.api_hash_set?'已设置（修改时填入新值）':'未设置';
+    document.getElementById('c-bot').value=c.bot_token||'';
+    document.querySelectorAll('#c-media input[type="checkbox"]').forEach(function(cb){
+      cb.checked=(c.media_types||[]).indexOf(cb.value)>=0;
+    });
+    document.getElementById('c-fa').value=(c.file_formats||{}).audio||'all';
+    document.getElementById('c-fv').value=(c.file_formats||{}).video||'all';
+    document.getElementById('c-fd').value=(c.file_formats||{}).document||'all';
+    document.getElementById('c-fp').value=(c.file_formats||{}).photo||'all';
+    document.getElementById('c-mt').value=c.max_download_task||5;
+    document.getElementById('c-lang').value=c.language||'EN';
+    document.getElementById('c-df').value=c.date_format||'%Y_%m';
+    document.getElementById('c-ws').value='';
+    document.getElementById('c-ws').placeholder=c.web_login_secret_set?'已设置（留空不修改）':'未设置';
+    document.getElementById('c-wle').checked=!!c.web_login_enabled;
+    var cl=document.getElementById('c-chats');cl.innerHTML='';
+    (c.chat||[]).forEach(function(ch){addChat(ch);});
+    }catch(e){toast('配置加载失败: '+e.message);}
+  };
+  x.send();
 }
 function addChat(ch){
   ch=ch||{};
@@ -714,16 +721,22 @@ function saveCfg(restart){
     chat:chats,
     restart_program: !!restart
   };
-  var x=new XMLHttpRequest();x.open('POST','save_config',false);
+  var x=new XMLHttpRequest();x.open('POST','save_config',true);
   x.setRequestHeader('Content-Type','application/json');
+  x.onreadystatechange=function(){
+    if(x.readyState!==4)return;
+    try{
+    var r=JSON.parse(x.responseText);
+    if(restart){
+      toast('配置已保存，容器即将重启…');
+      setTimeout(function(){location.reload();},5000);
+    }else{
+      toast(r.msg||'已保存，重启容器后生效');
+    }
+    }catch(e){toast('保存成功');}
+    _dlBusy=false;
+  };
   x.send(JSON.stringify(p));
-  var r=JSON.parse(x.responseText);
-  if(restart){
-    toast('配置已保存，容器即将重启…');
-    setTimeout(function(){location.reload();},5000);
-  }else{
-    toast(r.msg||'已保存，重启容器后生效');
-  }
   }catch(e){toast('保存失败: '+e.message);}
 }
 loadCfg();
@@ -795,26 +808,32 @@ function hLoad(){
   var q=encodeURIComponent(document.getElementById('h-q').value||'');
   var t=document.getElementById('h-type').value;
   var pps=parseInt(document.getElementById('h-pps').value)||20;
-  var x=new XMLHttpRequest();x.open('GET','get_history?page='+_hPg+'&per_page='+pps+'&search='+q+'&media_type='+t,false);x.send();
-  var d=JSON.parse(x.responseText);
-  _hT=d.total;
-  var pg=Math.max(1,Math.ceil(d.total/pps));
-  document.getElementById('h-info').textContent=_hPg+' / '+pg+'  ·  '+d.total+' 条';
-  document.getElementById('h-prev').disabled=_hPg<=1;
-  document.getElementById('h-next').disabled=_hPg>=pg;
-  // 累计总数（全量）与当前筛选数
-  if(d.total_all!==undefined){document.getElementById('h-total-all').textContent=d.total_all||0;}
-  document.getElementById('h-total-now').textContent=d.total||0;
-  var tb=document.getElementById('h-body');tb.innerHTML='';
-  if(!d.files || !d.files.length){tb.innerHTML='<tr><td colspan="5" class="empty">暂无文件</td></tr>';return;}
-  var html='';
-  d.files.forEach(function(f){
-    var ext=(f.name.split('.').pop()||'').toUpperCase();
-    var st=f.status==='failed'?'<span class="st-fail">失败</span>':f.status==='skip'?'<span class="st-skip">跳过</span>':'<span class="st-ok">成功</span>';
-    var up=f.publish_time_str||'-';
-    html+='<tr><td>'+esc(f.mtime_str)+'</td><td>'+esc(ext)+'</td><td>'+st+'</td><td>'+esc(up)+'</td><td class="log-fname">'+esc(logName(f))+'</td></tr>';
-  });
-  tb.innerHTML=html;
+  var x=new XMLHttpRequest();
+  x.open('GET','get_history?page='+_hPg+'&per_page='+pps+'&search='+q+'&media_type='+t,true);
+  x.onreadystatechange=function(){
+    if(x.readyState!==4)return;
+    if(x.status!==200){toast('历史加载失败');return;}
+    try{var d=JSON.parse(x.responseText);}catch(e){toast('历史数据解析失败');return;}
+    _hT=d.total;
+    var pg=Math.max(1,Math.ceil(d.total/pps));
+    document.getElementById('h-info').textContent=_hPg+' / '+pg+'  ·  '+d.total+' 条';
+    document.getElementById('h-prev').disabled=_hPg<=1;
+    document.getElementById('h-next').disabled=_hPg>=pg;
+    // 累计总数（全量）与当前筛选数
+    if(d.total_all!==undefined){document.getElementById('h-total-all').textContent=d.total_all||0;}
+    document.getElementById('h-total-now').textContent=d.total||0;
+    var tb=document.getElementById('h-body');tb.innerHTML='';
+    if(!d.files || !d.files.length){tb.innerHTML='<tr><td colspan="5" class="empty">暂无文件</td></tr>';return;}
+    var html='';
+    d.files.forEach(function(f){
+      var ext=(f.name.split('.').pop()||'').toUpperCase();
+      var st=f.status==='failed'?'<span class="st-fail">失败</span>':f.status==='skip'?'<span class="st-skip">跳过</span>':'<span class="st-ok">成功</span>';
+      var up=f.publish_time_str||'-';
+      html+='<tr><td>'+esc(f.mtime_str)+'</td><td>'+esc(ext)+'</td><td>'+st+'</td><td>'+esc(up)+'</td><td class="log-fname">'+esc(logName(f))+'</td></tr>';
+    });
+    tb.innerHTML=html;
+  };
+  x.send();
 }
 function hPage(d){
     var pps=parseInt(document.getElementById('h-pps').value)||20;
@@ -832,8 +851,12 @@ function hJump(){
 }
 function hClear(){
   if(!confirm('确定清空所有下载历史？'))return;
-  var x=new XMLHttpRequest();x.open('POST','clear_history',false);x.send();
-  hLoad();toast('历史已清空');
+  var x=new XMLHttpRequest();x.open('POST','clear_history',true);
+  x.onreadystatechange=function(){
+    if(x.readyState!==4)return;
+    hLoad();toast('历史已清空');
+  };
+  x.send();
 }
 </script>
 </body>
