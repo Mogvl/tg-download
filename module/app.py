@@ -527,7 +527,10 @@ class Application:
             _config.get("web_login_secret", self.web_login_secret)
         )
         # 显式登录开关（缺失或为空时视为关闭，免登录直进主页）
-        self.web_login_enabled = bool(_config.get("web_login_enabled", False))
+        # 注意：不能用 bool() 直接转换，因为 YAML 中 "false"（带引号字符串）
+        # 在 Python 中 bool("false") = True，会导致登录意外开启
+        raw = _config.get("web_login_enabled", False)
+        self.web_login_enabled = str(raw).lower() == "true" if isinstance(raw, str) else bool(raw)
         self.debug_web = _config.get("debug_web", self.debug_web)
         self.log_level = _config.get("log_level", self.log_level)
 

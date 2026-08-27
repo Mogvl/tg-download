@@ -121,6 +121,12 @@ def _record_login_fail():
     _login_fail_time = time.time()
 
 
+def _reset_login_fail():
+    """登录成功后重置失败计数"""
+    global _login_fail_count
+    _login_fail_count = 0
+
+
 def _apply_login_state():
     """在每个请求前，根据磁盘上的开关实时决定是否需要登录。
 
@@ -236,6 +242,7 @@ def login():
             if hmac.compare_digest(password, secret):
                 user = User()
                 login_user(user)
+                _reset_login_fail()  # 成功登录后重置失败计数
                 return jsonify({"code": "1"})
             _record_login_fail()
             return jsonify({"code": "0"})
@@ -487,7 +494,16 @@ def web_save_config():
     if "date_format" in data:
         cfg["date_format"] = data["date_format"]
     if "chat" in data:
-        cfg["chat"] = data["chat"]
+        # 校验 chat 列表结构，防止非法 chat_id（非 hashable）导致启动时崩溃
+        valid_chats = []
+        if isinstance(data["chat"], list):
+            for item in data["chat"]:
+                if isinstance(item, dict) and "chat_id" in item:
+                    cid = item["chat_id"]
+                    if isinstance(cid, (int, str)) and str(cid).strip():
+                        item["chat_id"] = cid
+                        valid_chats.append(item)
+        cfg["chat"] = valid_chats
     if "restart_program" in data:
         cfg["restart_program"] = data["restart_program"]
     if "file_formats" in data:
