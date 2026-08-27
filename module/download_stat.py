@@ -29,11 +29,13 @@ def get_download_result() -> dict:
 
 
 def get_total_download_speed() -> int:
-    """get total download speed = 各任务速度之和（与列表每行速度完全对应）"""
+    """get total download speed = 各进行中任务速度之和（已完成的不计，保证完成后归零）"""
     total = 0
     for chat_tasks in _download_result.values():
         for task in chat_tasks.values():
-            total += task.get("download_speed", 0)
+            # 只统计未完成的任务（down_byte < total_size）
+            if task.get("down_byte", 0) < task.get("total_size", 0):
+                total += task.get("download_speed", 0)
     return total
 
 

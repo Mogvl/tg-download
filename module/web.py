@@ -156,8 +156,12 @@ def _csrf_protect():
         from flask import abort
 
         abort(403)
-    host = request.host
-    if host not in origin:
+    from urllib.parse import urlparse
+
+    # 精确比较 hostname（子串匹配可被 tg.example.com.evil.com 绕过）
+    origin_host = (urlparse(origin).hostname or "").lower()
+    request_host = (request.host.split(":")[0] or "").lower()
+    if origin_host != request_host:
         from flask import abort
 
         abort(403)

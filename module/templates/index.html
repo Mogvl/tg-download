@@ -426,6 +426,8 @@ function formatByte(b){
 function logName(f){
   var raw=String(f.name||'');
   var base=raw.lastIndexOf('/')>=0?raw.substring(raw.lastIndexOf('/')+1):raw.lastIndexOf('\\')>=0?raw.substring(raw.lastIndexOf('\\')+1):raw;
+  // 若文件名已带日期前缀（YYYY-MM-DD_HH-MM 下划线 或 YYYY-MM-DD HH:MM 空格），不再重复拼接
+  if(/^\d{4}-\d{2}-\d{2}[ _]\d{2}[-:]\d{2}\s*-\s*/.test(base))return base;
   if(f.publish_time_str){
     var pt=f.publish_time_str;
     if(base.indexOf(pt)===0)return base;  // 已是新格式

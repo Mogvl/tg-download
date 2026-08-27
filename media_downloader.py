@@ -288,8 +288,8 @@ async def save_msg_to_file(
     datetime_dir_name = message.date.strftime(app.date_format) if message.date else "0"
 
     file_save_path = app.get_file_save_path("msg", dirname, datetime_dir_name)
+    # file_save_path 已含 save_path 前缀，不要再拼 temp_save_path（否则成 temp/app/downloads/...）
     file_name = os.path.join(
-        app.temp_save_path,
         file_save_path,
         f"{app.get_file_name(message.id, None, None, publish_time=message.date)}.txt",
     )
@@ -596,6 +596,12 @@ async def worker(client: pyrogram.client.Client):
                 await download_task(client, message, node)
         except Exception as e:
             logger.exception(f"{e}")
+            # 异常时补记 finish_task，避免 total_task/finish_task 计数失衡导致悬挂
+            try:
+                app.set_download_id(node, message.id, DownloadStatus.FailedDownload)
+                node.download_status[message.id] = DownloadStatus.FailedDownload
+            except Exception:
+                pass
 
 
 async def download_chat_task(

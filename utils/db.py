@@ -69,7 +69,7 @@ def init_db():
 def record_download(chat_id, message_id, file_name, file_size, file_path="", media_type="", status="success", publish_time=None):
     """记录一次下载（status: success / failed / skip）
 
-    同一 (chat_id, message_id) 只保留一条：重试/重启时覆盖旧记录，避免历史重复。
+    同一 (chat_id, message_id) 覆盖旧记录（重试成功后更新状态/时间，避免历史保留旧 failed）。
     """
     if not _db_ok:
         return
@@ -77,7 +77,13 @@ def record_download(chat_id, message_id, file_name, file_size, file_path="", med
         with _get_lock():
             with _conn() as c:
                 c.execute(
-                    "INSERT OR IGNORE INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp,status,publish_time) VALUES (?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp,status,publish_time) "
+                    "VALUES (?,?,?,?,?,?,?,?,?) "
+                    "ON CONFLICT(chat_id,message_id) DO UPDATE SET "
+                    "file_name=excluded.file_name, file_size=excluded.file_size, "
+                    "file_path=excluded.file_path, media_type=excluded.media_type, "
+                    "download_timestamp=excluded.download_timestamp, status=excluded.status, "
+                    "publish_time=excluded.publish_time",
                     (str(chat_id), message_id, file_name, file_size, file_path, media_type, time.time(), status, publish_time),
                 )
     except Exception as e:
@@ -192,12 +198,14 @@ def backfill_from_dir(base_dir, media_type="document"):
                             continue
                         rel = os.path.relpath(fpath, base_dir)
                         mtime = os.path.getmtime(fpath)
+                        # 用负数自增 message_id 作唯一键，避免 UNIQUE(chat_id,message_id) 冲突
+                        # （chat_id 统一为 "-"，message_id 全 0 会导致 INSERT 只生效第一条）
+                        added += 1
                         c.execute(
                             "INSERT OR IGNORE INTO download_history (chat_id,message_id,file_name,file_size,file_path,media_type,download_timestamp,status) VALUES (?,?,?,?,?,?,?,?)",
-                            ("-", 0, name, size, rel, media_type, mtime, "success"),
+                            ("-", -added, name, size, rel, media_type, mtime, "success"),
                         )
                         existing.add((name, size))
-                        added += 1
     except Exception as e:
         logger.error(f"补录历史失败: {e}")
     if added:
