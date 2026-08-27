@@ -518,15 +518,25 @@ layui.use(['table','element'],function(){
         res.forEach(function(x){
           var k=x.chat+'-'+x.id;
           var prev=_speedCache[k];
-          if(prev && prev.down_byte!==undefined && x.down_byte!==undefined){
-            var dt=(now-prev.time)/1000;
-            if(dt>0.5){
-              var diff=x.down_byte-prev.down_byte;
-              var bps=diff/dt;
-              x.download_speed=formatByte(bps)+'/s';
+          if(prev){
+            if(x.down_byte!==undefined && x.down_byte!==prev.down_byte){
+              // down_byte 有变化：计算实时速度
+              var dt=(now-prev.time)/1000;
+              if(dt>0.3){
+                var diff=x.down_byte-prev.down_byte;
+                prev.speed=diff/dt;  // bytes/s
+              }
+              prev.down_byte=x.down_byte;
+              prev.time=now;
+            }else if(now-prev.time>5000){
+              // 超过 5 秒无数据变化，视为停止
+              prev.speed=0;
+            }
+            if(prev.speed!==undefined){
+              x.download_speed=formatByte(prev.speed)+'/s';
             }
           }
-          _speedCache[k]={down_byte:x.down_byte, time:now};
+          if(!prev){_speedCache[k]={down_byte:x.down_byte, time:now, speed:0};}
         });
         // 用 layui table.reload 全量刷新
         var rows=res.filter(function(x){return x.download_progress<100;});
