@@ -457,8 +457,8 @@ def web_save_config():
     # 更新可编辑字段
     if "api_id" in data:
         cfg["api_id"] = data["api_id"]
-    # api_hash 只在用户真正修改时更新（前端传回 masked 值时跳过）
-    if "api_hash" in data and data["api_hash"] != "****" and len(data["api_hash"]) > 4:
+    # api_hash 只在用户真正修改时更新（跳过掩码值，防止把真实 hash 覆盖成 xxxx****）
+    if "api_hash" in data and data["api_hash"] and "*" not in data["api_hash"]:
         cfg["api_hash"] = data["api_hash"]
     if "bot_token" in data:
         cfg["bot_token"] = data["bot_token"]

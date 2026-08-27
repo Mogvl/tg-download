@@ -31,3 +31,8 @@ LICENSE
 dev-requirements.txt
 gen_filter_cache.py
 screenshot/
+# 敏感配置文件：绝不能打进镜像层（含 api_hash/bot_token/web_login_secret）
+config.yaml
+data.yaml
+config.yml
+rclone/

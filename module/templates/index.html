@@ -319,7 +319,7 @@
         <div class="dl-page" id="dl-done-page">
           <div class="dl-page-size">
             每页
-            <select id="dl-done-pps" onchange="dlDoneGo(1)">
+            <select id="dl-done-pps" onchange="dlDoneReset()">
               <option value="5">5</option>
               <option value="10" selected>10</option>
               <option value="20">20</option>
@@ -611,6 +611,8 @@ function dlDoneGo(dir){
   }
   loadAlreadyFromDisk();
 }
+/* 改每页条数：回到第 1 页重新加载 */
+function dlDoneReset(){_ddPg=1;loadAlreadyFromDisk();}
 
 /* ── 暂停/继续 ── */
 var _dlBusy=false;
@@ -692,7 +694,8 @@ function moveChat(btn,dir){
 function saveCfg(restart){
   try{
   var ah=document.getElementById('c-apih').value;
-  if(ah && ah.length<=4){toast('api_hash 长度不足，未修改');ah='';}
+  // 掩码值(含*)或过短表示未修改，置空不发送，避免把真实 api_hash 覆盖成掩码
+  if(ah && (ah.indexOf('*')>=0 || ah.length<=4)){ah='';}
   var media=[];
   document.querySelectorAll('#c-media input:checked').forEach(function(cb){media.push(cb.value);});
   var chats=[];

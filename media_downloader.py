@@ -143,7 +143,10 @@ def _can_download(_type: str, file_formats: dict, file_format: Optional[str]) ->
         True if the file format can be downloaded else False.
     """
     if _type in ["audio", "document", "video"]:
-        allowed_formats: list = file_formats[_type]
+        # 用 get 避免 file_formats 缺对应键时 KeyError
+        allowed_formats: list = file_formats.get(_type, [])
+        if not allowed_formats:
+            return False
         if not file_format in allowed_formats and allowed_formats[0] != "all":
             return False
     return True
@@ -190,8 +193,8 @@ async def _get_media_meta(
         file_name, file_format
     """
     if _type in ["audio", "document", "video"]:
-        # pylint: disable = C0301
-        file_format: Optional[str] = media_obj.mime_type.split("/")[-1]  # type: ignore
+        # mime_type 可能为 None（文档类消息），避免 split 崩溃
+        file_format: Optional[str] = (media_obj.mime_type or "application/octet-stream").split("/")[-1]
     else:
         file_format = None
 
@@ -596,10 +599,13 @@ async def worker(client: pyrogram.client.Client):
                 await download_task(client, message, node)
         except Exception as e:
             logger.exception(f"{e}")
-            # 异常时补记 finish_task，避免 total_task/finish_task 计数失衡导致悬挂
+            # 异常时补记 finish_task，避免 total_task/finish_task 计数失衡导致悬挂。
+            # 但仅当该消息尚未被 download_task 记账时补记，防止 set_download_id 双计
+            # （download_task 内 set_download_id 成功后，后续 upload 抛异常会走到这里）
             try:
-                app.set_download_id(node, message.id, DownloadStatus.FailedDownload)
-                node.download_status[message.id] = DownloadStatus.FailedDownload
+                if message.id not in node.download_status:
+                    app.set_download_id(node, message.id, DownloadStatus.FailedDownload)
+                    node.download_status[message.id] = DownloadStatus.FailedDownload
             except Exception:
                 pass
 

@@ -17,8 +17,8 @@ FROM python:3.11.9-alpine AS runtime
 
 WORKDIR /app
 
-# 运行时依赖：TLS 根证书（Telegram/HTTPS 必需）+ 健康检查工具
-RUN apk add --no-cache ca-certificates wget && update-ca-certificates
+# 运行时依赖：TLS 根证书 + 健康检查工具 + 时区数据（TZ 生效必需）
+RUN apk add --no-cache ca-certificates wget tzdata && update-ca-certificates
 
 # Copy installed deps from build stage
 COPY --from=build /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages

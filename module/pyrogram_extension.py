@@ -995,16 +995,19 @@ def record_download_status(func):
         file_formats: dict,
         node: TaskNode,
     ):
-        if _download_cache[(node.chat_id, message.id)] is DownloadStatus.Downloading:
+        key = (node.chat_id, message.id)
+        if _download_cache[key] is DownloadStatus.Downloading:
             return DownloadStatus.Downloading, None
 
-        _download_cache[(node.chat_id, message.id)] = DownloadStatus.Downloading
-
-        status, file_name = await func(client, message, media_types, file_formats, node)
-
-        _download_cache[(node.chat_id, message.id)] = status
-
-        return status, file_name
+        _download_cache[key] = DownloadStatus.Downloading
+        try:
+            status, file_name = await func(client, message, media_types, file_formats, node)
+            return status, file_name
+        finally:
+            # 无论成功/异常，都更新缓存状态，避免异常后缓存永远卡在 Downloading
+            # 导致该消息后续永远命中缓存、无法重试
+            if _download_cache.get(key) is DownloadStatus.Downloading:
+                _download_cache[key] = DownloadStatus.FailedDownload
 
     return inner
 
