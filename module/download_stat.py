@@ -67,7 +67,7 @@ async def update_download_status(
     """update_download_status"""
     cur_time = time.time()
     # pylint: disable = W0603
-    global _total_download_size, _last_download_time
+    global _total_download_speed, _total_download_size, _last_download_time
 
     if node.is_stop_transmission:
         client.stop_transmission()
