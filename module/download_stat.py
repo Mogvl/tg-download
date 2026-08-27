@@ -20,9 +20,6 @@ class DownloadState(Enum):
 _MAX_RESULT_PER_CHAT = 500
 
 _download_result: dict = {}
-_total_download_speed: int = 0
-_total_download_size: int = 0
-_last_download_time: float = time.time()
 _download_state: DownloadState = DownloadState.Downloading
 
 
@@ -63,10 +60,6 @@ async def update_download_status(
 ):
     """update_download_status"""
     cur_time = time.time()
-    # pylint: disable = W0603
-    global _total_download_speed
-    global _total_download_size
-    global _last_download_time
 
     if node.is_stop_transmission:
         client.stop_transmission()
@@ -90,8 +83,7 @@ async def update_download_status(
         ]
         end_time = _download_result[chat_id][message_id]["end_time"]
 
-        # 仅累计增量，避免首次插入与后续增量重复累加
-        _total_download_size += down_byte - last_download_byte
+        # 仅累计增量
         each_second_total_download += down_byte - last_download_byte
 
         if cur_time - last_time >= 1.0:
@@ -125,12 +117,3 @@ async def update_download_status(
         # 限制每个 chat 的条目数，防止内存无限增长
         while len(_download_result[chat_id]) > _MAX_RESULT_PER_CHAT:
             _download_result[chat_id].popitem(last=False)
-
-    if cur_time - _last_download_time >= 1.0:
-        # update speed
-        _total_download_speed = int(
-            _total_download_size / (cur_time - _last_download_time)
-        )
-        _total_download_speed = max(_total_download_speed, 0)
-        _total_download_size = 0
-        _last_download_time = cur_time

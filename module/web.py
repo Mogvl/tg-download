@@ -260,18 +260,10 @@ def index():
 @login_required
 def get_download_speed():
     """Get download speed"""
-    from module.download_stat import get_download_result
-    from utils.format import format_byte, get_byte_from_str
+    from utils.format import format_byte
 
-    total_speed = get_total_download_speed()
-    # 各任务速度之和（用于对比总速度是否有偏差）
-    sum_speed = 0
-    for chat_tasks in get_download_result().values():
-        for task in chat_tasks.values():
-            sum_speed += task.get("download_speed", 0)
     return jsonify({
-        "download_speed": format_byte(total_speed) + "/s",
-        "sum_speed": format_byte(sum_speed) + "/s",
+        "download_speed": format_byte(get_total_download_speed()) + "/s",
         "upload_speed": "0.00 B/s",
     })
 
@@ -303,10 +295,9 @@ def get_app_version():
 @login_required
 def web_get_completion_status():
     """返回下载完成状态（含失败/进行中统计）"""
-    try:
-        from media_downloader import _all_downloads_done
-    except ImportError:
-        _all_downloads_done = False
+    # 注意：主程序以 __main__ 运行，import media_downloader 会得到独立模块实例，
+    # 模块级变量不同步。必须通过 _app（共享同一 Application 实例）读取。
+    _all_downloads_done = getattr(_app, "_all_downloads_done", False) if _app else False
     from module.app import DownloadStatus
 
     chat_count = len(_app.chat_download_config) if _app else 0

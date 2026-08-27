@@ -288,7 +288,6 @@
           <span class="dl-badge" id="dl-done-badge" style="display:none">✓ 全部完成</span>
         </div>
         <div style="display:flex;align-items:center;gap:14px">
-          <span style="font-size:11px;color:var(--ink-3)" id="dl-sum-speed">各任务合计: 0.00 B/s</span>
           <button class="stop-btn" id="download_state" data-value="{{ download_state }}"
             onclick="dlToggle(this)">{{ {'pause':'暂停','continue':'继续'}[download_state] }}</button>
         </div>
@@ -546,8 +545,6 @@ layui.use(['table','element'],function(){
     $.ajax({url:'get_download_status',type:'get',dataType:'json',
       success:function(r){
         document.getElementById('download_speed_title').textContent=r.download_speed;
-        var sumEl=document.getElementById('dl-sum-speed');
-        if(sumEl&&r.sum_speed)sumEl.textContent='各任务合计: '+r.sum_speed;
       }});
     // 统计概览 + 完成状态
     $.ajax({url:'get_completion_status',type:'get',dataType:'json',
