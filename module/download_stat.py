@@ -22,6 +22,11 @@ _MAX_RESULT_PER_CHAT = 500
 _download_result: dict = {}
 _download_state: DownloadState = DownloadState.Downloading
 
+# 总速度独立计算：累加所有任务每次回调的增量，真实反映总体吞吐量
+_total_download_speed: int = 0
+_total_download_size: int = 0
+_last_download_time: float = time.time()
+
 
 def get_download_result() -> dict:
     """get global download result"""
@@ -29,15 +34,13 @@ def get_download_result() -> dict:
 
 
 def get_total_download_speed() -> int:
-    """get total download speed = 各进行中任务速度之和（已完成的不计，保证完成后归零）"""
-    total = 0
-    # 快照迭代,避免事件循环线程写、Flask 线程读时的并发修改 RuntimeError
-    for chat_tasks in list(_download_result.values()):
-        for task in list(chat_tasks.values()):
-            # 只统计未完成的任务（down_byte < total_size）
-            if task.get("down_byte", 0) < task.get("total_size", 0):
-                total += task.get("download_speed", 0)
-    return total
+    """get total download speed
+
+    独立计算的全局速度：累加所有任务每次回调增量，每秒窗口更新一次。
+    不依赖每行速度（每行速度可能因回调慢而滞后），
+    多任务错峰回调时总速度每秒都在变，真实反映总体吞吐量。
+    """
+    return _total_download_speed
 
 
 def get_download_state() -> DownloadState:
@@ -63,6 +66,8 @@ async def update_download_status(
 ):
     """update_download_status"""
     cur_time = time.time()
+    # pylint: disable = W0603
+    global _total_download_size, _last_download_time
 
     if node.is_stop_transmission:
         client.stop_transmission()
@@ -86,8 +91,9 @@ async def update_download_status(
         ]
         end_time = _download_result[chat_id][message_id]["end_time"]
 
-        # 仅累计增量
+        # 仅累计增量（每行速度 + 全局总速度）
         each_second_total_download += down_byte - last_download_byte
+        _total_download_size += down_byte - last_download_byte
 
         if cur_time - last_time >= 1.0:
             download_speed = int(each_second_total_download / (cur_time - last_time))
@@ -120,3 +126,12 @@ async def update_download_status(
         # 限制每个 chat 的条目数，防止内存无限增长
         while len(_download_result[chat_id]) > _MAX_RESULT_PER_CHAT:
             _download_result[chat_id].popitem(last=False)
+
+    # 全局总速度：每秒窗口更新一次（独立于每行速度，多任务错峰回调时每秒都在变）
+    if cur_time - _last_download_time >= 1.0:
+        _total_download_speed = int(
+            _total_download_size / (cur_time - _last_download_time)
+        )
+        _total_download_speed = max(_total_download_speed, 0)
+        _total_download_size = 0
+        _last_download_time = cur_time
