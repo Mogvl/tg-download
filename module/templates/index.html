@@ -509,7 +509,10 @@ layui.use(['table','element'],function(){
         var now=Date.now();
         var activeKeys={};
         res.forEach(function(x){
-          var k=x.chat+'-'+x.id; activeKeys[k]=true;
+          var k=x.chat+'-'+x.id;
+          // 只对未完成任务建立活跃标记；已完成任务主动清理 cache
+          if(x.download_progress>=100){delete _speedCache[k];return;}
+          activeKeys[k]=true;
           var prev=_speedCache[k];
           if(prev){
             // 记录采样点，保留最近约 8 秒
@@ -562,16 +565,6 @@ layui.use(['table','element'],function(){
         else{badge.style.display='none';}
       }});
   },1200);
-
-  setInterval(function(){
-    $.ajax({url:'get_download_list?already_down=true',type:'get',dataType:'json',
-      success:function(res){
-        var d=table.cache['already_download_list']||[];
-        var ids={};for(var j=0;j<d.length;j++)ids[d[j].id]=1;
-        for(var i=0;i<res.length;i++)if(!ids[res[i].id])d.push(res[i]);
-        table.reload('already_download_list',{data:d});
-      }});
-  },2000);
 });
 
 /* ── 从文件系统加载"已下载"列表（带翻页） ── */
@@ -622,6 +615,7 @@ function dlToggle(el){
   var x=new XMLHttpRequest();
   x.open('POST','set_download_state?state='+el.dataset.value);
   x.onload=function(){
+    if(x.status!==200){el.style.opacity='';el.style.pointerEvents='';_dlBusy=false;toast('操作失败: HTTP '+x.status);return;}
     var r=x.responseText;
     el.innerHTML=r==='pause'?'暂停':'继续';
     el.dataset.value=r;
@@ -730,6 +724,7 @@ function saveCfg(restart){
   x.setRequestHeader('Content-Type','application/json');
   x.onreadystatechange=function(){
     if(x.readyState!==4)return;
+    if(x.status!==200){toast('保存失败: HTTP '+x.status);return;}
     try{
     var r=JSON.parse(x.responseText);
     if(restart){
