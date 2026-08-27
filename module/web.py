@@ -35,7 +35,6 @@ _flask_app.secret_key = secrets.token_urlsafe(32)
 _login_manager = LoginManager()
 _login_manager.login_view = "login"
 _login_manager.init_app(_flask_app)
-web_login_users: dict = {}
 deAesCrypt = AesBase64("1234123412ABCDEF", "ABCDEF1234123412")
 
 # 全局引用，供新路由读写配置 / 日志 / 历史
@@ -183,7 +182,7 @@ def init_web(app: Application):
     Returns:
         None.
     """
-    global web_login_users, _app
+    global _app
     _app = app
     # 用 web_login_secret 派生会话密钥（哈希到 32 字节），保持登录态跨重启稳定；
     # 未配置时用随机密钥（重启后需重新登录）
@@ -271,8 +270,6 @@ def index():
 @login_required
 def get_download_speed():
     """Get download speed"""
-    from utils.format import format_byte
-
     return jsonify({
         "download_speed": format_byte(get_total_download_speed()) + "/s",
         "upload_speed": "0.00 B/s",

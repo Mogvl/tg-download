@@ -435,15 +435,6 @@ function logName(f){
   }
   return base;
 }
-/* 只显示原名（去掉「发布时间 - 」前缀） */
-function logNameOrig(f){
-  var raw=String(f.name||'');
-  var base=raw.lastIndexOf('/')>=0?raw.substring(raw.lastIndexOf('/')+1):raw.lastIndexOf('\\')>=0?raw.substring(raw.lastIndexOf('\\')+1):raw;
-  // 剥离形如 2020-08-01_00-00 - 的前缀
-  base=base.replace(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}\s*-\s*/, '');
-  return base;
-}
-
 /* ── 进度条统一渲染 ── */
 function pbarHtml(pct){
   var cls=pct>=100?'pbar-green':pct>30?'pbar-violet':'pbar-pink';
@@ -502,9 +493,9 @@ layui.use(['table','element'],function(){
   table.render({elem:'#already_download_list',data:[],height:240,limit:10000,
     cols:[[
       {field:'id',title:'ID',width:70},
-      {field:'filename',title:'文件名'},
+      {field:'filename',title:'文件名',templet:function(d){return esc(d.filename);}},
       {field:'total_size',title:'大小',width:90},
-      {field:'save_path',title:'路径'}
+      {field:'save_path',title:'路径',templet:function(d){return esc(d.save_path);}}
     ]],done:function(){el.render();}
   });
 
