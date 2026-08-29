@@ -236,29 +236,34 @@ def extract_info_from_link(link: str) -> Link:
 
     result = Link()
 
-    if "comment" in query:
-        result.group_id = paths[0]
-        result.comment_id = int(query["comment"][0])
-    elif len(paths) == 1 and paths[0] != "c":
-        result.group_id = paths[0]
-    elif len(paths) == 2:
-        if paths[0] == "c":
-            result.group_id = int(f"-100{paths[1]}")
-        else:
+    try:
+        if "comment" in query:
             result.group_id = paths[0]
-            result.post_id = int(paths[1])
-    elif len(paths) == 3:
-        if paths[0] == "c":
-            result.group_id = int(f"-100{paths[1]}")
-            result.post_id = int(paths[2])
-        else:
+            result.comment_id = int(query["comment"][0])
+        elif len(paths) == 1 and paths[0] != "c":
             result.group_id = paths[0]
-            result.topic_id = int(paths[1])
-            result.post_id = int(paths[2])
-    elif len(paths) == 4 and paths[0] == "c":
-        result.group_id = int(f"-100{paths[1]}")
-        result.topic_id = int(paths[2])
-        result.post_id = int(paths[3])
+        elif len(paths) == 2:
+            if paths[0] == "c":
+                result.group_id = int(f"-100{paths[1]}")
+            else:
+                result.group_id = paths[0]
+                result.post_id = int(paths[1])
+        elif len(paths) == 3:
+            if paths[0] == "c":
+                result.group_id = int(f"-100{paths[1]}")
+                result.post_id = int(paths[2])
+            else:
+                result.group_id = paths[0]
+                result.topic_id = int(paths[1])
+                result.post_id = int(paths[2])
+        elif len(paths) == 4 and paths[0] == "c":
+            result.group_id = int(f"-100{paths[1]}")
+            result.topic_id = int(paths[2])
+            result.post_id = int(paths[3])
+    except (ValueError, IndexError):
+        # 畸形链接（如 https://t.me/c/abc/1、https://t.me/123/abc）：
+        # 返回空 Link，调用方按解析失败处理，而不是让 bot 处理器抛异常
+        return Link()
 
     return result
 

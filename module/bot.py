@@ -792,7 +792,9 @@ async def remove_replace_advertisement_filter(
             )
         else:
             _bot.app.replace_advertisement_list.append(filter_str)
-            await client.send_message()
+            await client.send_message(
+                message.from_user.id, f"{_t('Add filter')} : {filter_str}"
+            )
         _bot.app.update_config(True)
     except Exception as e:
         await client.send_message(
@@ -887,6 +889,8 @@ async def download_from_link(client: pyrogram.Client, message: pyrogram.types.Me
         await client.send_message(
             message.from_user.id, msg, parse_mode=pyrogram.enums.ParseMode.HTML
         )
+        # 已提示用法则不再继续处理，避免把多余 token 当链接解析
+        return
 
     chat_id, message_id, _ = await parse_link(_bot.client, text[0])
 
@@ -901,7 +905,7 @@ async def download_from_link(client: pyrogram.Client, message: pyrogram.types.Me
             if download_message:
                 await direct_download(_bot, entity.id, message, download_message)
             else:
-                client.send_message(
+                await client.send_message(
                     message.from_user.id,
                     f"{_t('From')} {entity.title} {_t('download')} {message_id} {_t('error')}!",
                     reply_to_message_id=message.id,
