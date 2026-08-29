@@ -80,9 +80,10 @@ async def get_chat_history_v2(
             return
 
         offset_id = messages[-1].id + (1 if reverse else 0)
-        # 递增 offset，保证 add_offset 随分页推进（原代码始终为 0，导致
-        # add_offset 恒定 -limit，分页在边界后返回空，过早停止下载）
-        offset += len(messages)
+        # offset 保持调用方初值恒定，仅推进 offset_id 分页——与 pyrogram 1.x
+        # iter_history 的 reverse 参考实现一致（get_chunk_v2 的
+        # add_offset=-offset-limit 公式即源自 1.x get_history）。
+        # 此处累加 offset 会让窗口整体偏移、跳页漏消息
 
         for message in messages:
             yield message

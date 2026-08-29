@@ -952,15 +952,17 @@ async def proc_cache_forward(
             }:
                 continue
 
+            # SkipUpload 是终态（bot 广告/过滤命中有意跳过，永不变化），
+            # 与下载跳过一致：排除该成员继续组发送。当成等待条件会让
+            # 整组 return CacheForward 永久卡死（media_group_ids 也不释放）
+            if upload_status == UploadStatus.SkipUpload:
+                continue
+
             # Return if any media is still downloading or uploading
             if (
-                (
-                    check_download_status
-                    and download_status == DownloadStatus.Downloading
-                )
-                or upload_status == UploadStatus.Uploading
-                or upload_status == UploadStatus.SkipUpload
-            ):
+                check_download_status
+                and download_status == DownloadStatus.Downloading
+            ) or upload_status == UploadStatus.Uploading:
                 return ForwardStatus.CacheForward
 
             # Collect the media items that are valid for forwarding
