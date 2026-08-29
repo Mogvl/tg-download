@@ -19,6 +19,14 @@ class DownloadState(Enum):
 # 每个 chat 最多保留的下载进度条目，防止长期运行内存无限增长
 _MAX_RESULT_PER_CHAT = 500
 
+# 速度窗口：累计至少这么久才刷新一次显示值。回调按 1MB 分块触发，
+# 窗口太短会让速度随分块到达节奏大幅跳变（1MB 集中计入 1s 窗口被高估）
+_SPEED_WINDOW_SECONDS = 3.0
+# 空闲判定：超过这么久没有任何字节回调才把总速度归零。
+# 慢速下载（如 300KB/s）相邻 1MB 分块间隔可达 3s+，阈值过小会
+# 在正常下载时反复闪 0；8s 覆盖 ~125KB/s 的极慢场景
+_TOTAL_IDLE_SECONDS = 8.0
+
 _download_result: dict = {}
 _download_state: DownloadState = DownloadState.Downloading
 
@@ -38,27 +46,28 @@ def get_download_result() -> dict:
 def get_total_download_speed() -> int:
     """get total download speed
 
-    独立计算的全局速度：累加所有任务每次回调增量，按 1 秒窗口更新。
+    独立计算的全局速度：累加所有任务每次回调增量，按窗口均值更新。
     读取时主动刷新窗口（不依赖回调触发），保证前端每次轮询都能拿到最新值。
     """
     global _total_download_speed, _total_download_size, _last_download_time
     now = time.time()
     dt = now - _last_download_time
-    if dt >= 1.0:
+    if dt >= _SPEED_WINDOW_SECONDS:
         if _total_download_size > 0:
+            # 窗口均值：窗口内的空闲间隙也被摊入，平滑分块到达的跳变
             _total_download_speed = int(_total_download_size / dt)
             _total_download_speed = max(_total_download_speed, 0)
             _total_download_size = 0
             _last_download_time = now
-        elif now - _last_byte_time > 2.0:
-            # 窗口内无新数据且超过 2 秒没有任何字节回调：下载已空闲，
-            # 速度归零（保留旧值会一直显示陈旧速度）；活跃下载的回调
-            # 间隔约 1 秒，不会误判
+        elif now - _last_byte_time > _TOTAL_IDLE_SECONDS:
+            # 窗口内无新数据且超过空闲阈值没有任何字节回调：下载已空闲，
+            # 速度归零（保留旧值会一直显示陈旧速度）
             _total_download_speed = 0
             _last_download_time = now
         else:
-            # 短暂无新数据：保留上次速度（不闪 0，慢速下载时稳定显示）
-            _last_download_time = now
+            # 短暂无新数据：保留上次速度（不闪 0），窗口顺延，
+            # 字节恢复后把间隙一起摊入均值
+            pass
     return _total_download_speed
 
 
