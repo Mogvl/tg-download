@@ -20,6 +20,7 @@ from module.pyrogram_extension import (
     HookClient,
     fetch_message,
     get_extension,
+    parallel_download_media,
     record_download_status,
     report_bot_download_status,
     set_max_concurrent_transmissions,
@@ -471,7 +472,27 @@ async def download_media(
 
     for retry in range(3):
         try:
-            temp_download_path = await client.download_media(
+            # 大文件且开启并行分块时先尝试多连接下载；返回 None（不支持/
+            # 失败）自动回退 pyrogram 默认顺序下载，正确性不受影响
+            parallel_path = None
+            if app.concurrent_chunks_per_file > 1:
+                parallel_path = await parallel_download_media(
+                    client,
+                    message,
+                    media_size,
+                    temp_file_name,
+                    app.concurrent_chunks_per_file,
+                    progress=update_download_status,
+                    progress_args=(
+                        message_id,
+                        ui_file_name,
+                        task_start_time,
+                        node,
+                        client,
+                    ),
+                )
+
+            temp_download_path = parallel_path or await client.download_media(
                 message,
                 file_name=temp_file_name,
                 progress=update_download_status,

@@ -396,6 +396,9 @@ class Application:
         self.caption_name_dict: dict = {}
         self.caption_entities_dict: dict = {}
         self.max_concurrent_transmissions: int = 1
+        # 单文件并行分块下载的连接数；1 = 关闭（走 pyrogram 默认顺序下载）。
+        # 提升单文件速度（Telegram 单连接吞吐有限），过大可能触发服务端限流
+        self.concurrent_chunks_per_file: int = 1
         self.web_host: str = "0.0.0.0"
         self.web_port: int = 5000
         self.max_download_task: int = 5
@@ -510,6 +513,10 @@ class Application:
 
         self.max_concurrent_transmissions = _config.get(
             "max_concurrent_transmissions", self.max_concurrent_transmissions
+        )
+
+        self.concurrent_chunks_per_file = _config.get(
+            "concurrent_chunks_per_file", self.concurrent_chunks_per_file
         )
 
         language = _config.get("language", "EN")

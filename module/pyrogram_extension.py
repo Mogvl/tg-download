@@ -1,7 +1,9 @@
 """Pyrogram ext"""
 
 import asyncio
+import functools
 import html
+import inspect
 import os
 import secrets
 import struct
@@ -17,16 +19,21 @@ import pyrogram
 from loguru import logger
 from pyrogram import enums, parser, types, utils
 from pyrogram.client import Cache
+from pyrogram.file_id import FileId
+from pyrogram.methods.messages.inline_session import get_session
 from pyrogram.enums import MessageEntityType
+from pyrogram.errors import AuthBytesInvalid
 from pyrogram.file_id import (
     FILE_REFERENCE_FLAG,
     PHOTO_TYPES,
     WEB_LOCATION_FLAG,
     FileType,
+    ThumbnailSource,
     b64_decode,
     rle_decode,
 )
 from pyrogram.mime_types import mime_types
+from pyrogram.session import Auth, Session
 
 from module.app import (
     Application,
@@ -1264,6 +1271,249 @@ def set_max_concurrent_transmissions(
         client.get_file_semaphore = asyncio.Semaphore(
             client.max_concurrent_transmissions
         )
+
+
+# ---------------------------------------------------------------------------
+# 并行分块下载
+#
+# 背景：pyrogram 的 download_media 对单个文件是"串行 1MB/请求"拉取
+# （client.get_file 内 while 循环顺序 invoke upload.GetFile），单文件速度
+# 受每请求往返延迟限制（跨区 DC 常见 ~1.5-2MB/s），多文件并发是唯一的提速手段。
+#
+# 这里的实现按 FastTelethon 思路：对大文件建立多条到文件所在 DC 的会话，
+# 各自并发拉取不同 offset 的 1MB 分块，os.pwrite 写入对应位置。
+# 任何失败（CDN 重定向/鉴权/网络/FloodWait 超阈值）整体回退到
+# client.download_media 顺序下载，保证正确性不受影响。
+# ---------------------------------------------------------------------------
+
+_DOWNLOAD_CHUNK_SIZE = 1024 * 1024
+# 小文件往返次数少，并行收益低还多建连接，直接走顺序下载
+_PARALLEL_MIN_SIZE = 20 * 1024 * 1024
+
+
+def _build_file_location(file_id):
+    """按 client.get_file 的逻辑构造文件下载 location（仅覆盖常用类型）。
+
+    返回 None 表示类型不支持并行路径，调用方应回退顺序下载。
+    """
+    file_type = file_id.file_type
+
+    if file_type == FileType.PHOTO:
+        return pyrogram.raw.types.InputPhotoFileLocation(
+            id=file_id.media_id,
+            access_hash=file_id.access_hash,
+            file_reference=file_id.file_reference,
+            thumb_size=file_id.thumbnail_size,
+        )
+    if file_type == FileType.CHAT_PHOTO:
+        if file_id.chat_id > 0:
+            peer = pyrogram.raw.types.InputPeerUser(
+                user_id=file_id.chat_id,
+                access_hash=file_id.chat_access_hash,
+            )
+        else:
+            if file_id.chat_access_hash == 0:
+                peer = pyrogram.raw.types.InputPeerChat(
+                    chat_id=-file_id.chat_id
+                )
+            else:
+                peer = pyrogram.raw.types.InputPeerChannel(
+                    channel_id=utils.get_channel_id(file_id.chat_id),
+                    access_hash=file_id.chat_access_hash,
+                )
+        return pyrogram.raw.types.InputPeerPhotoFileLocation(
+            peer=peer,
+            photo_id=file_id.media_id,
+            big=file_id.thumbnail_source == ThumbnailSource.CHAT_PHOTO_BIG,
+        )
+    if file_type in (
+        FileType.VIDEO,
+        FileType.ANIMATION,
+        FileType.VIDEO_NOTE,
+        FileType.AUDIO,
+        FileType.VOICE,
+        FileType.DOCUMENT,
+        FileType.STICKER,
+    ):
+        return pyrogram.raw.types.InputDocumentFileLocation(
+            id=file_id.media_id,
+            access_hash=file_id.access_hash,
+            file_reference=file_id.file_reference,
+            thumb_size=file_id.thumbnail_size,
+        )
+    return None
+
+
+async def _create_download_session(
+    client: pyrogram.Client, dc_id: int
+) -> Session:
+    """新建一条到目标 DC 的媒体会话（不复用 client.media_sessions 缓存）。
+
+    镜像 pyrogram/methods/messages/inline_session.py 的建会话流程：
+    远端 DC 时创建新 auth key 并导入用户授权，否则直接复用主 auth key。
+    """
+    test_mode = await client.storage.test_mode()
+    if dc_id == await client.storage.dc_id():
+        auth_key = await client.storage.auth_key()
+    else:
+        auth_key = await Auth(client, dc_id, test_mode).create()
+
+    session = Session(client, dc_id, auth_key, test_mode, is_media=True)
+    await session.start()
+
+    if dc_id != await client.storage.dc_id():
+        for _ in range(3):
+            exported_auth = await client.invoke(
+                pyrogram.raw.functions.auth.ExportAuthorization(dc_id=dc_id)
+            )
+            try:
+                await session.invoke(
+                    pyrogram.raw.functions.auth.ImportAuthorization(
+                        id=exported_auth.id, bytes=exported_auth.bytes
+                    )
+                )
+            except AuthBytesInvalid:
+                continue
+            else:
+                break
+        else:
+            await session.stop()
+            raise AuthBytesInvalid
+
+    return session
+
+
+async def parallel_download_media(
+    client: pyrogram.Client,
+    message: pyrogram.types.Message,
+    file_size: int,
+    file_name: str,
+    chunk_concurrency: int,
+    progress: Callable = None,
+    progress_args: tuple = (),
+) -> Optional[str]:
+    """并行分块下载单个大文件。
+
+    Parameters
+    ----------
+    file_size: 远端文件大小（<=0 或过小时调用方不应走此路径）
+    file_name: 目标路径（语义与 client.download_media 的 file_name 一致：
+               先写 "<file_name>.temp"，完成后改名并返回 file_name）
+    chunk_concurrency: 单文件并行会话数
+
+    Returns
+    -------
+    成功返回 file_name；任何失败返回 None（调用方回退顺序下载）。
+    """
+    media = getattr(message, message.media.value, None) if message.media else None
+    file_id_str = getattr(media, "file_id", None)
+    if not file_id_str or not file_size or file_size < _PARALLEL_MIN_SIZE:
+        return None
+
+    file_id = FileId.decode(file_id_str)
+    location = _build_file_location(file_id)
+    if location is None:
+        return None
+
+    dc_id = file_id.dc_id
+    temp_path = os.path.abspath(file_name) + ".temp"
+    total_chunks = -(-file_size // _DOWNLOAD_CHUNK_SIZE)  # ceil
+    chunk_concurrency = max(1, min(chunk_concurrency, total_chunks))
+
+    # 会话 0 复用主媒体会话，其余新建
+    sessions: list = []
+    abort = asyncio.Event()
+
+    async def _progress(done_bytes: int):
+        if progress is None:
+            return
+        func = functools.partial(
+            progress, min(done_bytes, file_size), file_size, *progress_args
+        )
+        if inspect.iscoroutinefunction(progress):
+            await func()
+        else:
+            await client.loop.run_in_executor(client.executor, func)
+
+    done_bytes = 0
+    fd = None
+    try:
+        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+        fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+        os.ftruncate(fd, file_size)
+
+        sessions.append(await get_session(client, dc_id))
+        while len(sessions) < chunk_concurrency:
+            sessions.append(await _create_download_session(client, dc_id))
+
+        next_chunk = {"i": 0}
+        lock = asyncio.Lock()
+
+        async def worker(session: Session):
+            nonlocal done_bytes
+            while not abort.is_set():
+                async with lock:
+                    idx = next_chunk["i"]
+                    next_chunk["i"] = idx + 1
+                if idx >= total_chunks:
+                    return
+                offset = idx * _DOWNLOAD_CHUNK_SIZE
+                try:
+                    r = await session.invoke(
+                        pyrogram.raw.functions.upload.GetFile(
+                            location=location,
+                            offset=offset,
+                            limit=_DOWNLOAD_CHUNK_SIZE,
+                        ),
+                        sleep_threshold=10,
+                    )
+                except Exception:
+                    # 该会话失败即放弃整体并行（回退顺序下载），不逐块重试
+                    abort.set()
+                    return
+                if not isinstance(r, pyrogram.raw.types.upload.File):
+                    # CDN 重定向等场景交给顺序路径处理
+                    abort.set()
+                    return
+                chunk = r.bytes
+                os.pwrite(fd, chunk, offset)
+                done_bytes += len(chunk)
+                await _progress(done_bytes)
+
+        await asyncio.gather(*(worker(s) for s in sessions))
+
+        if abort.is_set() or done_bytes < file_size:
+            return None
+
+        os.close(fd)
+        fd = None
+        os.replace(temp_path, os.path.abspath(file_name))
+        logger.info(
+            f"parallel download {file_name} done: {file_size} bytes "
+            f"with {chunk_concurrency} connections"
+        )
+        return file_name
+    except Exception as e:
+        logger.warning(f"parallel download {file_name} failed, fallback: {e}")
+        return None
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        # 未成功 rename 的残留临时文件一律清理（成功路径 temp 已被 replace 走）
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+        # 只清理本函数新建的会话（sessions[0] 是主媒体会话缓存，保留）
+        for session in sessions[1:]:
+            try:
+                await session.stop()
+            except Exception:
+                pass
 
 
 async def fetch_message(client: pyrogram.Client, message: pyrogram.types.Message):

@@ -55,8 +55,14 @@ hide_file_name: false
 
 language: ZH               # 界面语言：EN / ZH / RU / UA
 
-# 最大并发下载任务数
+# 最大并发下载任务数（同时下载的文件数）
 max_download_task: 5
+
+# 单文件并行分块下载连接数（1 = 关闭，走 pyrogram 默认顺序下载）
+# Telegram 单连接吞吐有限（跨区 DC 单文件常见 ~1.5-2MB/s），开启后
+# 大文件(>=20MB)用多条连接并发拉取不同分块，可显著提升单文件速度。
+# 建议 3~6；过大可能触发服务端限流（会自动回退顺序下载，不会导致下载失败）
+concurrent_chunks_per_file: 1
 
 # 启动容器后是否自动开始下载；false=需在 Web 界面手动点「开始下载」
 auto_download: false
