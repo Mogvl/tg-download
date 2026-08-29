@@ -18,7 +18,8 @@ pylint:
 style_check: static_type_check pylint
 
 test:
-	py.test --cov media_downloader --doctest-modules \
+	mkdir -p ${TEST_ARTIFACTS}
+	pytest --cov media_downloader \
 		--cov utils \
 		--cov-report term-missing \
 		--cov-report html:${TEST_ARTIFACTS} \

@@ -995,7 +995,37 @@ async def proc_cache_forward(
         message_thread_id = node.reply_to_message.message_thread_id
         business_connection_id = node.reply_to_message.business_connection_id
         upload_telegram_chat_id = node.reply_to_message.chat.id
-    if not await send_media_group_v2(
+    if not multi_media:
+        # 组内成员全部被过滤/跳过：无可发送内容，释放组并按跳过处理，
+        # 避免对 SendMultiMedia 传空列表必然 400
+        logger.warning(
+            f"Media group {message.media_group_id} has no media left to forward, skip"
+        )
+        forward_status = ForwardStatus.SkipForward
+    elif len(multi_media) == 1:
+        # Telegram 媒体组要求 2-10 个元素：只剩 1 个时降级为单条 SendMedia，
+        # 否则 SendMultiMedia 必 400 且组已 pop 无重试
+        single = multi_media[0]
+        peer = await client.resolve_peer(upload_telegram_chat_id)
+        try:
+            await client.invoke(
+                pyrogram.raw.functions.messages.SendMedia(
+                    peer=peer,
+                    media=single.media,
+                    random_id=single.random_id,
+                    message=single.message,
+                    entities=single.entities,
+                    reply_to=utils.get_reply_to(
+                        reply_to_message_id=reply_to_message_id,
+                        message_thread_id=message_thread_id,
+                    ),
+                ),
+                sleep_threshold=60,
+            )
+        except Exception as e:
+            logger.exception(f"Send single media from group error: {e}")
+            forward_status = ForwardStatus.FailedForward
+    elif not await send_media_group_v2(
         client,
         upload_telegram_chat_id,  # type: ignore
         multi_media,
@@ -1029,11 +1059,13 @@ def record_download_status(func):
             status, file_name = await func(client, message, media_types, file_formats, node)
             return status, file_name
         finally:
-            # 无论成功/异常，都更新缓存状态，避免异常后缓存永远卡在 Downloading
-            # 导致该消息后续永远命中缓存、无法重试
-            # 注意：_download_cache 是 pyrogram 的 Cache 对象，没有 .get()，须用下标访问
-            if _download_cache[key] is DownloadStatus.Downloading:
-                _download_cache[key] = DownloadStatus.FailedDownload
+            # 终态后置 None（读取方等价于缺失）：缓存的并发去重仅在
+            # Downloading 期间生效，非 Downloading 一律放行，行为不变；
+            # 同时修复原 finally 把成功下载也写成 FailedDownload 的语义问题，
+            # 并避免终态残留误导后续"已下载"判断。
+            # 注意：_download_cache 是 pyrogram 的 Cache 对象，无 .get()/
+            # __delitem__，须用下标访问，置 None 等价清空
+            _download_cache[key] = None
 
     return inner
 
@@ -1134,13 +1166,19 @@ async def _report_bot_status(
                 continue
 
             temp_file_name = truncate_filename(os.path.basename(value.file_name), 10)
+            # rclone 进度常为小数（如 "12.3%"），int("12.3") 抛 ValueError
+            # 会让整条 bot 状态消息静默不再更新
+            try:
+                upload_percentage = int(float(value.percentage.rstrip("%")))
+            except (TypeError, ValueError):
+                upload_percentage = 0
             upload_msg_detail_str += (
                 f" ├─ 🆔 {_t('Message ID')}: {idx}\n"
                 f" │   ├─ 📁 : {temp_file_name}\n"
                 f" │   ├─ 📏 : {value.total}\n"
                 f" │   ├─ ⏫ : {value.speed}\n"
                 f" │   └─ 📊 : ["
-                f'{create_progress_bar(int(value.percentage.split("%")[0]))}]'
+                f"{create_progress_bar(upload_percentage)}]"
                 f" ({value.percentage})%\n"
             )
 

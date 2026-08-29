@@ -895,7 +895,8 @@ class Application:
                 if value.node.download_status.get(
                     it, DownloadStatus.FailedDownload
                 ) in [DownloadStatus.SuccessDownload, DownloadStatus.SkipDownload]:
-                    unfinished_ids.remove(it)
+                    # ids_to_retry 可能含重复 id，remove 对重复项第二次抛 KeyError
+                    unfinished_ids.discard(it)
 
             for _idx, _value in value.node.download_status.items():
                 if _value not in (

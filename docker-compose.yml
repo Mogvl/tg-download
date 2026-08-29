@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   tg-download:
     # 本项目自动构建的镜像（push 到 main 后由 GitHub Actions 发布）
@@ -7,6 +5,18 @@ services:
     # 如需基于源码本地构建，注释掉上面的 image 行，并取消下面 build 行的注释：
     # build: .
     container_name: tg-download
+    init: true
+    # 安全加固：下载器处理不可信媒体，收窄容器能力（不影响卷挂载读写）
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # 日志轮转：json-file 默认无上限，长期运行会占满宿主机磁盘
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     ports:
       # Web UI 端口映射（外部端口:容器内 5000）
       - "14087:5000"
@@ -33,8 +43,8 @@ services:
       # 如需 rclone 上传云盘，取消下行注释并放入 rclone 配置
       # - ./rclone/:/root/.config/rclone/
     healthcheck:
-      # 探测无需登录的版本接口，进程存活且 Web 可达时 healthy
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/get_app_version"]
+      # 探测公开健康端点（/get_app_version 已需登录，wget 无会话会 302）
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/healthz"]
       interval: 60s
       timeout: 5s
       retries: 3

@@ -53,9 +53,17 @@ def get_latest_release(proxy_config: dict = None) -> dict:
         logger.warning(f"{e}")
         return {}
 
-    latest_release: dict = json.loads(response.text)
+    try:
+        if not response.ok:
+            logger.warning(f"check updates failed: HTTP {response.status_code}")
+            return {}
+        latest_release: dict = json.loads(response.text)
+    except Exception as e:
+        # 网络抖动/限流/非 JSON 响应都不应让调用方崩溃
+        logger.warning(f"{e}")
+        return {}
 
-    if f"v{__version__}" != latest_release["tag_name"]:
+    if f"v{__version__}" != latest_release.get("tag_name"):
         return latest_release
 
     return {}

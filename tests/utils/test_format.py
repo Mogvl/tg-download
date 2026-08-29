@@ -117,8 +117,8 @@ class FormatTestCase(unittest.TestCase):
         self.assertEqual(get_byte_from_str("2TB"), 2 * 1024 * 1024 * 1024 * 1024)
         self.assertEqual(get_byte_from_str("1024TB"), 1024 * 1024 * 1024 * 1024 * 1024)
 
-        # more str
-        self.assertEqual(get_byte_from_str("2BW"), 2)
+        # more str（非法单位不应把前缀误当 "2B" 解析）
+        self.assertEqual(get_byte_from_str("2BW"), None)
         self.assertEqual(get_byte_from_str("2WBW"), None)
 
         self.assertEqual(get_byte_from_str("2CB"), None)

@@ -43,7 +43,8 @@ class TestAesBase64(unittest.TestCase):
         content = "Test padding."
         padded_content = aes.pkcs7padding(content)
         self.assertEqual(len(padded_content) % 16, 0)
-        self.assertEqual(padded_content[-1], chr(16 - len(content) % 16))
+        # Python 3 中 bytes 索引返回 int，与 chr() 的 str 直接比较必然失败
+        self.assertEqual(padded_content[-1], 16 - len(content.encode("utf-8")) % 16)
 
     def test_aes_base64_pkcs7unpadding(self):
         key = "Test unpadding key"

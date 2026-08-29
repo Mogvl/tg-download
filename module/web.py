@@ -298,9 +298,16 @@ def web_set_download_state():
 
 
 @_flask_app.route("/get_app_version")
+@login_required  # 未认证时不泄露版本号（仅 index.html 登录后调用）
 def get_app_version():
     """Get telegram_media_downloader version"""
     return utils.__version__
+
+
+@_flask_app.route("/healthz")
+def healthz():
+    """健康检查端点（公开、无版本号等敏感信息，供 Docker healthcheck 使用）"""
+    return "ok"
 
 
 @_flask_app.route("/get_completion_status")

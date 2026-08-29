@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+    # 文档/截图改动无需触发双平台构建发布
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - "screenshot/**"
   workflow_dispatch:
 
 env:

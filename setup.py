@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup  # distutils 已废弃，Python 3.12 起移除
 
 from utils import __version__
 
@@ -38,5 +38,5 @@ setup(
         "Community": "https://t.me/TeegramMediaDownload",
         "Source": "https://github.com/tangyoha/telegram_media_downloader",
     },
-    python_requires="~=3.7",
+    python_requires=">=3.8",  # flask 3.0 / werkzeug 3.0 要求 py>=3.8
 )

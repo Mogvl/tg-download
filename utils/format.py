@@ -180,7 +180,8 @@ def get_byte_from_str(byte_str: str) -> Optional[int]:
     int
         Byte
     """
-    search_res = re.match(r"(\d{1,})(B|KB|MB|GB|TB)", byte_str)
+    # $ 锚点：拒绝 "2BW" 之类把 "2B" 前缀误当有效单位的输入
+    search_res = re.match(r"(\d{1,})(B|KB|MB|GB|TB)$", byte_str)
     if search_res:
         unit_str = search_res.group(2)
         unit: int = 1

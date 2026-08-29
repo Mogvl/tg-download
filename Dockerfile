@@ -20,6 +20,11 @@ WORKDIR /app
 # 运行时依赖：TLS 根证书 + 健康检查工具 + 时区数据（TZ 生效必需）
 RUN apk add --no-cache ca-certificates wget tzdata && update-ca-certificates
 
+# 日志直出 stdout/stderr（docker logs 实时可见，不被 Python 缓冲延迟）
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 5000
+
 # Copy installed deps from build stage
 COPY --from=build /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
