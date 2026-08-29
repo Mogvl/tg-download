@@ -1405,39 +1405,39 @@ async def parallel_download_media(
     -------
     成功返回 file_name；任何失败返回 None（调用方回退顺序下载）。
     """
-    media = getattr(message, message.media.value, None) if message.media else None
-    file_id_str = getattr(media, "file_id", None)
-    if not file_id_str or not file_size or file_size < _PARALLEL_MIN_SIZE:
-        return None
-
-    file_id = FileId.decode(file_id_str)
-    location = _build_file_location(file_id)
-    if location is None:
-        return None
-
-    dc_id = file_id.dc_id
-    temp_path = os.path.abspath(file_name) + ".temp"
-    total_chunks = -(-file_size // _DOWNLOAD_CHUNK_SIZE)  # ceil
-    chunk_concurrency = max(1, min(chunk_concurrency, total_chunks))
-
     # 会话 0 复用主媒体会话，其余新建
     sessions: list = []
     abort = asyncio.Event()
-
-    async def _progress(done_bytes: int):
-        if progress is None:
-            return
-        func = functools.partial(
-            progress, min(done_bytes, file_size), file_size, *progress_args
-        )
-        if inspect.iscoroutinefunction(progress):
-            await func()
-        else:
-            await client.loop.run_in_executor(client.executor, func)
-
     done_bytes = 0
     fd = None
+    temp_path = os.path.abspath(file_name) + ".temp"
     try:
+        # message.media 可能是任意形态（如 bool），取值失败一律回退顺序下载
+        media = getattr(message, getattr(message.media, "value", ""), None)
+        file_id_str = getattr(media, "file_id", None)
+        if not file_id_str or not file_size or file_size < _PARALLEL_MIN_SIZE:
+            return None
+
+        file_id = FileId.decode(file_id_str)
+        location = _build_file_location(file_id)
+        if location is None:
+            return None
+
+        dc_id = file_id.dc_id
+        total_chunks = -(-file_size // _DOWNLOAD_CHUNK_SIZE)  # ceil
+        chunk_concurrency = max(1, min(chunk_concurrency, total_chunks))
+
+        async def _progress(done_bytes: int):
+            if progress is None:
+                return
+            func = functools.partial(
+                progress, min(done_bytes, file_size), file_size, *progress_args
+            )
+            if inspect.iscoroutinefunction(progress):
+                await func()
+            else:
+                await client.loop.run_in_executor(client.executor, func)
+
         os.makedirs(os.path.dirname(temp_path), exist_ok=True)
         fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
         os.ftruncate(fd, file_size)
