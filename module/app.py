@@ -397,9 +397,10 @@ class Application:
         self.caption_entities_dict: dict = {}
         self.max_concurrent_transmissions: int = 1
         # 单文件并行分块下载的连接数；1 = 关闭（走 pyrogram 默认顺序下载）。
-        # Telegram 单连接吞吐有限（跨区 DC 单文件常见 ~1.5-2MB/s），开启后
-        # 大文件(>=20MB)多连接并发拉取分块；失败自动回退顺序下载
-        self.concurrent_chunks_per_file: int = 4
+        # Telegram 单连接吞吐有限，开启后大文件(>=20MB)多连接并发拉取分块；
+        # 内置卡死看门狗与超时，任何异常自动回退顺序下载。
+        # 默认关闭，确认网络环境下稳定后再在 config.yaml 中显式开启
+        self.concurrent_chunks_per_file: int = 1
         self.web_host: str = "0.0.0.0"
         self.web_port: int = 5000
         self.max_download_task: int = 5

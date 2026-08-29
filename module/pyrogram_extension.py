@@ -1289,6 +1289,8 @@ def set_max_concurrent_transmissions(
 _DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 # 小文件往返次数少，并行收益低还多建连接，直接走顺序下载
 _PARALLEL_MIN_SIZE = 20 * 1024 * 1024
+# 卡死判定：这么久没有任何分块完成就放弃并行（连接挂起/网络黑洞）
+_PARALLEL_STALL_SECONDS = 30
 
 
 def _build_file_location(file_id):
@@ -1442,12 +1444,22 @@ async def parallel_download_media(
         fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
         os.ftruncate(fd, file_size)
 
-        sessions.append(await get_session(client, dc_id))
+        # 会话建立限时：Auth 握手/授权导入挂起时不拖死整个下载
+        sessions.append(
+            await asyncio.wait_for(get_session(client, dc_id), timeout=30)
+        )
         while len(sessions) < chunk_concurrency:
-            sessions.append(await _create_download_session(client, dc_id))
+            sessions.append(
+                await asyncio.wait_for(
+                    _create_download_session(client, dc_id), timeout=30
+                )
+            )
 
         next_chunk = {"i": 0}
         lock = asyncio.Lock()
+        # 卡死看门狗：超过 _PARALLEL_STALL_SECONDS 没有任何分块完成
+        # （连接挂起/网络黑洞）即放弃并行、回退顺序下载
+        last_progress = {"t": time.time()}
 
         async def worker(session: Session):
             nonlocal done_bytes
@@ -1478,11 +1490,57 @@ async def parallel_download_media(
                 chunk = r.bytes
                 os.pwrite(fd, chunk, offset)
                 done_bytes += len(chunk)
+                last_progress["t"] = time.time()
                 await _progress(done_bytes)
 
-        await asyncio.gather(*(worker(s) for s in sessions))
+        async def watchdog():
+            while not abort.is_set():
+                if time.time() - last_progress["t"] > _PARALLEL_STALL_SECONDS:
+                    logger.warning(
+                        f"parallel download {file_name} stalled "
+                        f"(no chunk in {_PARALLEL_STALL_SECONDS}s), fallback"
+                    )
+                    abort.set()
+                    return
+                await asyncio.sleep(5)
 
-        if abort.is_set() or done_bytes < file_size:
+        worker_tasks = [asyncio.create_task(worker(s)) for s in sessions]
+        watchdog_task = asyncio.create_task(watchdog())
+        completed = False
+        try:
+            # 整体兜底超时：按最悲观 256KB/s 估算 + 60s 余量，防止极端循环
+            overall_timeout = 60 + file_size // (256 * 1024)
+            deadline = time.time() + overall_timeout
+            while True:
+                if abort.is_set():
+                    break
+                if all(t.done() for t in worker_tasks):
+                    break
+                if time.time() > deadline:
+                    logger.warning(
+                        f"parallel download {file_name} exceeded "
+                        f"{overall_timeout}s, fallback"
+                    )
+                    break
+                await asyncio.sleep(0.2)
+
+            if (
+                not abort.is_set()
+                and done_bytes >= file_size
+                and all(t.done() for t in worker_tasks)
+            ):
+                completed = True
+        finally:
+            # 通知所有协程收尾，并立即取消挂起的 worker（卡在 invoke 上的
+            # 会话不再等待，这就是"卡死→及时回退"的关键）
+            abort.set()
+            watchdog_task.cancel()
+            for t in worker_tasks:
+                if not t.done():
+                    t.cancel()
+            await asyncio.gather(*worker_tasks, return_exceptions=True)
+
+        if not completed:
             return None
 
         os.close(fd)
