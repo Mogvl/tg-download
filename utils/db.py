@@ -7,10 +7,23 @@ import time
 
 logger = logging.getLogger("tdl.db")
 
-DB_PATH = os.path.join(os.path.abspath("."), "downloads", "downloads.sqlite3")
+# DB 路径默认锚定 CWD（与历史行为/Docker WORKDIR=/app 兼容）；
+# 其他启动方式（systemd/手动指定目录）可用环境变量 TDL_DB_PATH 显式指定，
+# 避免 DB 建到错误目录导致 downloads 卷持久化失效
+DB_PATH = os.environ.get(
+    "TDL_DB_PATH",
+    os.path.join(os.path.abspath("."), "downloads", "downloads.sqlite3"),
+)
 _db_ok = False
+# 写失败累计：磁盘满/卷只读/WAL 不可建时写全部静默失败，暴露给接口探查
+_db_write_failures = 0
 # 写锁：串行化并发写，配合 WAL + busy_timeout 避免 database is locked
 _write_lock = None  # 延迟初始化（须在 init_db 后）
+
+
+def get_write_failures() -> int:
+    """累计写失败次数（供健康检查/接口暴露）"""
+    return _db_write_failures
 
 
 def _get_lock():
@@ -61,6 +74,29 @@ def init_db():
                     pass
             c.execute("CREATE INDEX IF NOT EXISTS idx_ts ON download_history(download_timestamp DESC)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_chat ON download_history(chat_id)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_pt ON download_history(publish_time)")
+            # 一次性迁移：修复 hide_file_name 开启时写入的掩码文件名（****.ext）。
+            # DB 必须存真实名（去重/补录按 file_name 匹配），掩码仅用于展示；
+            # 真实名可从一直存对的 file_path 取 basename 恢复
+            try:
+                rows = c.execute(
+                    "SELECT id, file_path FROM download_history "
+                    "WHERE file_name LIKE '****%' AND chat_id != '-' "
+                    "AND file_path IS NOT NULL AND file_path != ''"
+                ).fetchall()
+                fixed = 0
+                for rid, fpath in rows:
+                    base = os.path.basename(str(fpath).replace("\\", "/"))
+                    if base and not base.startswith("****"):
+                        c.execute(
+                            "UPDATE download_history SET file_name = ? WHERE id = ?",
+                            (base, rid),
+                        )
+                        fixed += 1
+                if fixed:
+                    logger.info(f"已修复 {fixed} 条掩码文件名的历史记录")
+            except Exception as migration_err:
+                logger.warning(f"掩码文件名迁移失败(不影响使用): {migration_err}")
         _db_ok = True
     except Exception as e:
         logger.error(f"数据库初始化失败: {e}")
@@ -87,6 +123,9 @@ def record_download(chat_id, message_id, file_name, file_size, file_path="", med
                     (str(chat_id), message_id, file_name, file_size, file_path, media_type, time.time(), status, publish_time),
                 )
     except Exception as e:
+        # pylint: disable=W0603
+        global _db_write_failures
+        _db_write_failures += 1
         logger.error(f"记录下载失败 {file_name}: {e}")
 
 
@@ -103,6 +142,9 @@ def record_upload_time(chat_id, message_id, ts=None):
                     (ts if ts is not None else time.time(), str(chat_id), message_id),
                 )
     except Exception as e:
+        # pylint: disable=W0603
+        global _db_write_failures
+        _db_write_failures += 1
         logger.error(f"记录转发时间失败: {e}")
 
 
@@ -155,6 +197,9 @@ def clear_history():
             with _conn() as c:
                 c.execute("DELETE FROM download_history")
     except Exception as e:
+        # pylint: disable=W0603
+        global _db_write_failures
+        _db_write_failures += 1
         logger.error(f"清空历史失败: {e}")
 
 

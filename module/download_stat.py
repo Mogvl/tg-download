@@ -26,6 +26,8 @@ _download_state: DownloadState = DownloadState.Downloading
 _total_download_speed: int = 0
 _total_download_size: int = 0
 _last_download_time: float = time.time()
+# 最后一次收到字节的回调时间，用于判断下载是否已空闲（速度归零）
+_last_byte_time: float = time.time()
 
 
 def get_download_result() -> dict:
@@ -48,8 +50,14 @@ def get_total_download_speed() -> int:
             _total_download_speed = max(_total_download_speed, 0)
             _total_download_size = 0
             _last_download_time = now
+        elif now - _last_byte_time > 2.0:
+            # 窗口内无新数据且超过 2 秒没有任何字节回调：下载已空闲，
+            # 速度归零（保留旧值会一直显示陈旧速度）；活跃下载的回调
+            # 间隔约 1 秒，不会误判
+            _total_download_speed = 0
+            _last_download_time = now
         else:
-            # 窗口内无新数据：保留上次速度（不闪 0，慢速下载时稳定显示）
+            # 短暂无新数据：保留上次速度（不闪 0，慢速下载时稳定显示）
             _last_download_time = now
     return _total_download_speed
 
@@ -79,6 +87,7 @@ async def update_download_status(
     cur_time = time.time()
     # pylint: disable = W0603
     global _total_download_speed, _total_download_size, _last_download_time
+    global _last_byte_time
 
     if node.is_stop_transmission:
         client.stop_transmission()
@@ -93,14 +102,19 @@ async def update_download_status(
     if not _download_result.get(chat_id):
         _download_result[chat_id] = OrderedDict()
 
-    if _download_result[chat_id].get(message_id):
-        last_download_byte = _download_result[chat_id][message_id]["down_byte"]
-        last_time = _download_result[chat_id][message_id]["end_time"]
-        download_speed = _download_result[chat_id][message_id]["download_speed"]
-        each_second_total_download = _download_result[chat_id][message_id][
-            "each_second_total_download"
-        ]
-        end_time = _download_result[chat_id][message_id]["end_time"]
+    existing = _download_result[chat_id].get(message_id)
+    # 字节倒退 = 同一消息进入了新一轮重试（重试从 0 重新上报字节）。
+    # 此时按"首次回调"处理：不累计负增量、重置条目，否则大负数会污染
+    # 每任务窗口并把全局累加器打成负数，导致总速度长时间显示陈旧值
+    if existing and down_byte < existing["down_byte"]:
+        existing = None
+
+    if existing:
+        last_download_byte = existing["down_byte"]
+        last_time = existing["end_time"]
+        download_speed = existing["download_speed"]
+        each_second_total_download = existing["each_second_total_download"]
+        end_time = existing["end_time"]
 
         # 仅累计增量（每行速度 + 全局总速度）
         each_second_total_download += down_byte - last_download_byte
@@ -113,12 +127,10 @@ async def update_download_status(
 
         download_speed = max(download_speed, 0)
 
-        _download_result[chat_id][message_id]["down_byte"] = down_byte
-        _download_result[chat_id][message_id]["end_time"] = end_time
-        _download_result[chat_id][message_id]["download_speed"] = download_speed
-        _download_result[chat_id][message_id][
-            "each_second_total_download"
-        ] = each_second_total_download
+        existing["down_byte"] = down_byte
+        existing["end_time"] = end_time
+        existing["download_speed"] = download_speed
+        existing["each_second_total_download"] = each_second_total_download
         # 保持插入序，便于淘汰最旧
         _download_result[chat_id].move_to_end(message_id)
     else:
@@ -137,5 +149,8 @@ async def update_download_status(
         # 限制每个 chat 的条目数，防止内存无限增长
         while len(_download_result[chat_id]) > _MAX_RESULT_PER_CHAT:
             _download_result[chat_id].popitem(last=False)
+
+    # 有字节流动即刷新空闲判定基准
+    _last_byte_time = cur_time
     # 窗口刷新统一由 get_total_download_speed() 读取时执行，
     # 避免回调驱动与读取驱动重复清零 _total_download_size

@@ -437,11 +437,14 @@ async def download_media(
                             f"id={message.id} {ui_file_name} "
                             f"{_t('already download,download skipped')}.\n"
                         )
-                        # 已存在的文件也补录到数据库，保证历史完整
+                        # 已存在的文件也补录到数据库，保证历史完整。
+                        # 注意：DB 必须存真实 file_name（掩码只用于展示），
+                        # 否则 hide_file_name 开启时 backfill 去重按文件名
+                        # 匹配不上，已下载文件会被重复补录
                         db.record_download(
                             chat_id=node.chat_id,
                             message_id=message.id,
-                            file_name=ui_file_name,
+                            file_name=file_name,
                             file_size=file_size or media_size,
                             file_path=file_name,
                             media_type=_type if _type else "",
@@ -485,11 +488,11 @@ async def download_media(
                 _check_download_finish(media_size, temp_download_path, ui_file_name)
                 await asyncio.sleep(0.5)
                 _move_to_download_path(temp_download_path, file_name)
-                # 记录到数据库
+                # 记录到数据库（存真实名，掩码仅用于展示，保证去重/补录可用）
                 db.record_download(
                     chat_id=node.chat_id,
                     message_id=message_id,
-                    file_name=ui_file_name,
+                    file_name=file_name,
                     file_size=media_size,
                     file_path=file_name,
                     media_type=_type if _type else "",
@@ -538,12 +541,12 @@ async def download_media(
             )
             break
 
-    # 记录失败下载到数据库（供 Web 日志列表「状态」列展示）
+    # 记录失败下载到数据库（供 Web 日志列表「状态」列展示；存真实名）
     if db._db_ok:
         db.record_download(
             chat_id=node.chat_id,
             message_id=message_id,
-            file_name=ui_file_name or f"{message_id}",
+            file_name=file_name or f"{message_id}",
             file_size=media_size,
             file_path=file_name,
             media_type=_type if _type else "",

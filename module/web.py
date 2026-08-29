@@ -319,11 +319,15 @@ def web_get_completion_status():
     active = 0
     if _app:
         for v in _app.chat_download_config.values():
-            for st in v.node.download_status.values():
+            # 快照后迭代：download_status 由事件循环线程并发增删，
+            # 直接迭代 values() 偶发 "dictionary changed size during iteration"
+            for st in list(v.node.download_status.values()):
                 if st is DownloadStatus.FailedDownload:
                     failed += 1
                 elif st is DownloadStatus.Downloading:
                     active += 1
+    # DB 健康暴露：写失败（磁盘满/卷只读）不再完全静默
+    import utils.db as db_mod
     return jsonify({
         "done": bool(_all_downloads_done) and chat_count > 0,
         "total": total,
@@ -331,6 +335,7 @@ def web_get_completion_status():
         "failed": failed,
         "active": active,
         "chat_count": chat_count,
+        "db_ok": bool(db_mod._db_ok) and db_mod.get_write_failures() == 0,
     })
 
 
@@ -598,13 +603,23 @@ def web_get_history():
     )
     # 历史累计总数（全量，不受搜索/筛选影响），供历史页「已完成」统计展示
     total_all = db_mod.get_total_count()
+    # hide_file_name 开启时 DB 存真实名（供去重/补录/搜索），仅在 API 输出时掩码
+    hide_name = bool(_read_config().get("hide_file_name", False))
 
     files = []
     for r in records:
         pub_ts = r.get("publish_time") or 0
+        name = r["file_name"]
+        path = r.get("file_path", "")
+        if hide_name:
+            ext = os.path.splitext(name)[1] if name else ""
+            name = f"****{ext}"
+            if path:
+                p, b = os.path.split(path.replace("\\", "/"))
+                path = f"{p}/****{os.path.splitext(b)[1]}" if b else p
         files.append({
-            "name": r["file_name"],
-            "path": r.get("file_path", ""),
+            "name": name,
+            "path": path,
             "size": r["file_size"],
             "size_str": format_byte(r["file_size"]),
             "mtime": r["download_timestamp"],
