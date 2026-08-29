@@ -641,7 +641,8 @@ function loadCfg(){
     document.getElementById('c-apid').value=c.api_id||'';
     document.getElementById('c-apih').value=c.api_hash_set?c.api_hash:'';
     document.getElementById('c-apih').placeholder=c.api_hash_set?'已设置（修改时填入新值）':'未设置';
-    document.getElementById('c-bot').value=c.bot_token||'';
+    document.getElementById('c-bot').value=c.bot_token_set?c.bot_token:'';
+    document.getElementById('c-bot').placeholder=c.bot_token_set?'已设置（修改时填入新值）':'未设置';
     document.querySelectorAll('#c-media input[type="checkbox"]').forEach(function(cb){
       cb.checked=(c.media_types||[]).indexOf(cb.value)>=0;
     });
@@ -690,6 +691,9 @@ function saveCfg(restart){
   var ah=document.getElementById('c-apih').value;
   // 掩码值(含*)或过短表示未修改，置空不发送，避免把真实 api_hash 覆盖成掩码
   if(ah && (ah.indexOf('*')>=0 || ah.length<=4)){ah='';}
+  var bt=document.getElementById('c-bot').value;
+  // bot_token 与 api_hash 同规则：掩码值(含*)表示未修改，置空不发送
+  if(bt && bt.indexOf('*')>=0){bt='';}
   var media=[];
   document.querySelectorAll('#c-media input:checked').forEach(function(cb){media.push(cb.value);});
   var chats=[];
@@ -704,7 +708,7 @@ function saveCfg(restart){
   var p={
     api_id:parseInt(document.getElementById('c-apid').value)||null,
     api_hash:ah,
-    bot_token:document.getElementById('c-bot').value,
+    bot_token:bt,
     media_types:media,
     file_formats:{
       audio:document.getElementById('c-fa').value,

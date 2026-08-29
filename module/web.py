@@ -427,7 +427,13 @@ def web_get_config():
     raw_hash = cfg.get("api_hash", "")
     safe["api_hash"] = raw_hash[:4] + "****" if len(raw_hash) > 4 else "****"
     safe["api_hash_set"] = bool(raw_hash)
-    safe["bot_token"] = cfg.get("bot_token", "")
+    # bot_token 等同机器人完整控制权，与 api_hash 一致只回传掩码
+    raw_token = str(cfg.get("bot_token", "") or "")
+    if raw_token:
+        safe["bot_token"] = raw_token[:4] + "****" if len(raw_token) > 4 else "****"
+    else:
+        safe["bot_token"] = ""
+    safe["bot_token_set"] = bool(raw_token)
     safe["media_types"] = cfg.get("media_types", [])
     safe["web_host"] = cfg.get("web_host", "0.0.0.0")
     safe["web_port"] = cfg.get("web_port", 5000)
@@ -464,7 +470,13 @@ def web_save_config():
     # api_hash 只在用户真正修改时更新（跳过掩码值，防止把真实 hash 覆盖成 xxxx****）
     if "api_hash" in data and data["api_hash"] and "*" not in data["api_hash"]:
         cfg["api_hash"] = data["api_hash"]
-    if "bot_token" in data:
+    # bot_token 与 api_hash 相同：掩码值/空值表示未修改，不回写
+    # （如需清空 bot_token，请直接编辑 config.yaml）
+    if (
+        "bot_token" in data
+        and data["bot_token"]
+        and "*" not in str(data["bot_token"])
+    ):
         cfg["bot_token"] = data["bot_token"]
     if "media_types" in data:
         cfg["media_types"] = data["media_types"]

@@ -58,10 +58,13 @@ class CloudDrive:
 
     @staticmethod
     def rclone_mkdir(drive_config: CloudDriveConfig, remote_dir: str):
-        """mkdir in remote"""
+        """mkdir in remote
+
+        使用列表参数调用 rclone（不经 shell），remote_dir 可能包含来自
+        Telegram 消息的频道标题/文件名，shell 拼接存在命令注入风险。
+        """
         with Popen(
-            f'"{drive_config.rclone_path}" mkdir "{remote_dir}/"',
-            shell=True,
+            [drive_config.rclone_path, "mkdir", remote_dir + "/"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
         ) as p:
@@ -79,7 +82,15 @@ class CloudDrive:
     def zip_file(local_file_path: str) -> str:
         """
         Zip local file
+
+        若源文件本身是 .zip，直接返回原路径：否则 ZipFile(w) 会先截断
+        与源文件同名的目标 zip，随后写入 0 字节，破坏原始下载内容。
         """
+        if local_file_path.endswith(".zip"):
+            logger.warning(
+                f"{local_file_path} is already a zip, skip re-zip to avoid truncation"
+            )
+            return local_file_path
 
         file_path_without_extension = os.path.splitext(local_file_path)[0]
         zip_file_name = file_path_without_extension + ".zip"
@@ -88,6 +99,16 @@ class CloudDrive:
             zip_writer.write(local_file_path)
 
         return zip_file_name
+
+    @staticmethod
+    def _remove_quiet(path: str):
+        """删除文件；不存在时仅告警，避免误把上传成功当失败"""
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            logger.warning(f"remove {path}: file not found (already removed?)")
+        except OSError as e:
+            logger.warning(f"remove {path} failed: {e}")
 
     # pylint: disable = R0914
     @staticmethod
@@ -100,6 +121,7 @@ class CloudDrive:
     ) -> bool:
         """Use Rclone upload file"""
         upload_status: bool = False
+        zip_file_path: str = ""
         try:
             remote_dir = (
                 drive_config.remote_dir
@@ -112,7 +134,6 @@ class CloudDrive:
                 CloudDrive.rclone_mkdir(drive_config, remote_dir)
                 drive_config.dir_cache[remote_dir] = True
 
-            zip_file_path: str = ""
             file_path = local_file_path
             if drive_config.before_upload_file_zip:
                 zip_file_path = CloudDrive.zip_file(local_file_path)
@@ -120,12 +141,19 @@ class CloudDrive:
             else:
                 file_path = local_file_path
 
-            cmd = (
-                f'"{drive_config.rclone_path}" copy "{file_path}" '
-                f'"{remote_dir}/" --create-empty-src-dirs --ignore-existing --progress'
-            )
-            proc = await asyncio.create_subprocess_shell(
-                cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            # 使用列表参数调用 rclone（不经 shell）：file_path/remote_dir 可能
+            # 包含来自 Telegram 消息的文件名/频道标题，shell 拼接（即使加引号）
+            # 无法防御 $() / 反引号 命令注入
+            proc = await asyncio.create_subprocess_exec(
+                drive_config.rclone_path,
+                "copy",
+                file_path,
+                remote_dir + "/",
+                "--create-empty-src-dirs",
+                "--ignore-existing",
+                "--progress",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
             )
             if proc.stdout:
                 async for output in proc.stdout:
@@ -156,15 +184,24 @@ class CloudDrive:
             if returncode == 0:
                 logger.info(f"upload file {local_file_path} success")
                 drive_config.total_upload_success_file_count += 1
+                # 先清理 zip 临时副本（非源文件本身才删），再按配置删除源文件；
+                # 删除失败不应把"已成功上传"误报为失败
+                if zip_file_path and zip_file_path != local_file_path:
+                    CloudDrive._remove_quiet(zip_file_path)
                 if drive_config.after_upload_file_delete:
-                    os.remove(local_file_path)
-                if drive_config.before_upload_file_zip:
-                    os.remove(zip_file_path)
+                    CloudDrive._remove_quiet(local_file_path)
                 upload_status = True
             else:
                 logger.warning(f"rclone upload failed, returncode={returncode}")
+                # 上传失败保留源文件供重试，仅清理可复现的 zip 临时副本
+                if zip_file_path and zip_file_path != local_file_path:
+                    CloudDrive._remove_quiet(zip_file_path)
         except Exception as e:
             logger.error(f"{e.__class__} {e}")
+            if zip_file_path and zip_file_path != local_file_path and os.path.exists(
+                zip_file_path
+            ):
+                CloudDrive._remove_quiet(zip_file_path)
             return False
 
         return upload_status
@@ -175,6 +212,7 @@ class CloudDrive:
     ):
         """aliyun upload file"""
         upload_status: bool = False
+        zip_file_path: str = ""
         if not drive_config.aligo:
             logger.warning("please config aligo! see README.md")
             return False
@@ -193,7 +231,6 @@ class CloudDrive:
                 if aligo_dir:
                     drive_config.dir_cache[remote_dir] = aligo_dir.file_id
 
-            zip_file_path: str = ""
             file_paths = []
             if drive_config.before_upload_file_zip:
                 zip_file_path = CloudDrive.zip_file(local_file_path)
@@ -203,22 +240,31 @@ class CloudDrive:
 
             res = drive_config.aligo.upload_files(
                 file_paths=file_paths,
-                parent_file_id=drive_config.dir_cache[remote_dir],
+                # mkdir/查找失败时目录未被缓存，兜底传到根目录而不是 KeyError
+                parent_file_id=drive_config.dir_cache.get(remote_dir, "root"),
                 check_name_mode="refuse",
             )
 
             if len(res) > 0:
                 drive_config.total_upload_success_file_count += len(res)
                 if drive_config.after_upload_file_delete:
-                    os.remove(local_file_path)
+                    CloudDrive._remove_quiet(local_file_path)
 
-                if drive_config.before_upload_file_zip:
-                    os.remove(zip_file_path)
+                if zip_file_path and zip_file_path != local_file_path:
+                    CloudDrive._remove_quiet(zip_file_path)
 
                 upload_status = True
+            else:
+                # 上传失败保留源文件供重试，仅清理可复现的 zip 临时副本
+                if zip_file_path and zip_file_path != local_file_path:
+                    CloudDrive._remove_quiet(zip_file_path)
 
         except Exception as e:
             logger.error(f"{e.__class__} {e}")
+            if zip_file_path and zip_file_path != local_file_path and os.path.exists(
+                zip_file_path
+            ):
+                CloudDrive._remove_quiet(zip_file_path)
             return False
 
         return upload_status

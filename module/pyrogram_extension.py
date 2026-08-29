@@ -263,6 +263,12 @@ async def download_thumbnail(
                 )
 
             except Exception as e:
+                # 清理本次尝试留下的半成品文件，避免 temp 目录持续膨胀
+                if os.path.exists(unique_name):
+                    try:
+                        os.remove(unique_name)
+                    except OSError:
+                        pass
                 if attempt == max_attempts:
                     logger.exception(
                         f"Failed to download thumbnail after {max_attempts}"
@@ -276,8 +282,14 @@ async def download_thumbnail(
                     # Wait 2 seconds before retrying
                     await asyncio.sleep(2)
 
-                thumbnail = None
                 thumbnail_file = None
+                # 重新从（可能已刷新的）消息取缩略图；置 None 会让下一次
+                # download_media(None) 直接失败，重试形同虚设
+                thumbnail = (
+                    message.video.thumbs[0]
+                    if getattr(message, "video", None) and message.video.thumbs
+                    else None
+                )
     return thumbnail_file
 
 
@@ -301,8 +313,9 @@ async def upload_telegram_chat(
         if download_status is DownloadStatus.SuccessDownload or (
             download_status is DownloadStatus.SkipDownload and not message.media
         ):
+            forward_status = None
             try:
-                await upload_telegram_chat_message(
+                forward_status = await upload_telegram_chat_message(
                     client,
                     upload_user,
                     app,
@@ -313,8 +326,18 @@ async def upload_telegram_chat(
             except Exception as e:
                 logger.exception(f"Upload file {file_name} error: {e}")
             finally:
-                if file_name and app.after_upload_telegram_delete:
-                    os.remove(file_name)
+                # 仅在确认非失败时删除本地文件；上传失败/异常时保留文件供重试，
+                # 避免"下载成功但一次转发失败"导致已下载内容丢失
+                if (
+                    file_name
+                    and app.after_upload_telegram_delete
+                    and forward_status is not None
+                    and forward_status is not ForwardStatus.FailedForward
+                ):
+                    try:
+                        os.remove(file_name)
+                    except OSError as e:
+                        logger.warning(f"Remove {file_name} failed: {e}")
 
             # forward text
             # FIXME: fix upload text
