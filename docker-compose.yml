@@ -1,3 +1,7 @@
+# version 键对 compose v2 已废弃，但 NAS 上常见的老版 docker-compose v1
+# 仍依赖它做格式判定，保留以保证兼容
+version: "3.8"
+
 services:
   tg-download:
     # 本项目自动构建的镜像（push 到 main 后由 GitHub Actions 发布）
