@@ -72,6 +72,23 @@ def init_db():
                     c.execute(f"ALTER TABLE download_history ADD COLUMN {col} {typ}")
                 except Exception:
                     pass
+            # 兼容旧库：更早版本建表可能没有 UNIQUE(chat_id, message_id)
+            # （CREATE TABLE IF NOT EXISTS 不会升级已有表），而 record_download
+            # 的 ON CONFLICT upsert 依赖它，缺失会导致每条记录都报
+            # "ON CONFLICT clause does not match any PRIMARY KEY or UNIQUE
+            # constraint"。先清掉重复行（保留最新一条）再补唯一索引
+            try:
+                c.execute(
+                    "DELETE FROM download_history WHERE id NOT IN "
+                    "(SELECT MAX(id) FROM download_history "
+                    "GROUP BY chat_id, message_id)"
+                )
+                c.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_chat_msg "
+                    "ON download_history(chat_id, message_id)"
+                )
+            except Exception as idx_err:
+                logger.warning(f"补建唯一索引失败(不影响下载): {idx_err}")
             c.execute("CREATE INDEX IF NOT EXISTS idx_ts ON download_history(download_timestamp DESC)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_chat ON download_history(chat_id)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_pt ON download_history(publish_time)")
