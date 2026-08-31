@@ -971,12 +971,16 @@ class Application:
         self.config["restart_program"] = False
 
         if immediate:
-            with open(self.config_file, "w", encoding="utf-8") as yaml_file:
-                _yaml.dump(self.config, yaml_file)
-
-        if immediate:
-            with open(self.app_data_file, "w", encoding="utf-8") as yaml_file:
-                _yaml.dump(self.app_data, yaml_file)
+            # 原子写入：先写临时文件再 replace，避免写一半被 SIGKILL/断电
+            # 导致 config.yaml 截断损坏（停机保存进度走这里）
+            for path, data in (
+                (self.config_file, self.config),
+                (self.app_data_file, self.app_data),
+            ):
+                tmp_path = f"{path}.tmp"
+                with open(tmp_path, "w", encoding="utf-8") as yaml_file:
+                    _yaml.dump(data, yaml_file)
+                os.replace(tmp_path, path)
 
     def set_language(self, language: Language):
         """Set Language"""

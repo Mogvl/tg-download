@@ -53,4 +53,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+      # SIGTERM 后给停机保存（游标+待重试队列持久化）留足时间，避免被
+      # SIGKILL 截断；大频道停机时 ids_to_retry 可达数千条
+      stop_grace_period: 60s
     restart: unless-stopped

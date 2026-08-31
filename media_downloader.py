@@ -49,7 +49,11 @@ DATA_FILE_NAME = "data.yaml"
 APPLICATION_NAME = "media_downloader"
 app = Application(CONFIG_NAME, DATA_FILE_NAME, APPLICATION_NAME)
 
-queue: asyncio.Queue = asyncio.Queue()
+# 有界队列：生产者（分页扫描）远快于下载，无界队列会把整个频道的消息
+# 堆进内存，且停机时 download_status/ids_to_retry 巨大、保存缓慢。
+# 限长后生产者自然背压等待，worker 始终有活干；完成判定有 need_check
+# 门控，不受入队节奏影响
+queue: asyncio.Queue = asyncio.Queue(maxsize=max(app.max_download_task * 2, 20))
 RETRY_TIME_OUT = 3
 
 logging.getLogger("pyrogram.session.session").addFilter(LogFilter())
@@ -769,14 +773,20 @@ def main():
     import signal
 
     def _sigterm_handler(signum, frame):
-        """收到 SIGTERM 时先保存配置再退出"""
+        """收到 SIGTERM 时先保存配置再退出
+
+        给保存留足时间后主动退出（NAS/容器默认 SIGKILL 宽限约 10s），
+        大频道停机时 ids_to_retry 可能数千条，非原子写又超时被杀会把
+        config.yaml 写坏——主动退出保证保存完整。
+        """
         logger.info("收到终止信号，正在保存配置...")
         try:
             app.update_config()
             logger.success("配置已保存")
         except Exception as e:
             logger.error(f"保存配置失败: {e}")
-        os._exit(0)
+        finally:
+            os._exit(0)
 
     signal.signal(signal.SIGTERM, _sigterm_handler)
 
