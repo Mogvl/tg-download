@@ -23,9 +23,9 @@ _MAX_RESULT_PER_CHAT = 500
 # 窗口太短会让速度随分块到达节奏大幅跳变（1MB 集中计入 1s 窗口被高估）
 _SPEED_WINDOW_SECONDS = 3.0
 # 空闲判定：超过这么久没有任何字节回调才把总速度归零。
-# 慢速下载（如 300KB/s）相邻 1MB 分块间隔可达 3s+，阈值过小会
-# 在正常下载时反复闪 0；8s 覆盖 ~125KB/s 的极慢场景
-_TOTAL_IDLE_SECONDS = 8.0
+# 文件切换（收尾+取下一任务+建连）与频道间扫描存在数秒的真实字节间隙，
+# 阈值过小会在下载进行中反复闪 0；30s 只在真正停止/长时间卡顿时归零
+_TOTAL_IDLE_SECONDS = 30.0
 
 _download_result: dict = {}
 _download_state: DownloadState = DownloadState.Downloading
