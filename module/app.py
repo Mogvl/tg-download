@@ -979,7 +979,10 @@ class Application:
 
         if immediate:
             # 原子写入：先写临时文件再 replace，避免写一半被 SIGKILL/断电
-            # 导致 config.yaml 截断损坏（停机保存进度走这里）
+            # 导致 config.yaml 截断损坏（停机保存进度走这里）。
+            # 注意：config.yaml/data.yaml 常以单文件 bind-mount 进容器，
+            # 挂载点钉住 inode，os.replace 会 EBUSY——此时降级为"临时文件
+            # 写完 → 覆盖写原文件"（同一 inode 内容替换，兼容挂载）
             for path, data in (
                 (self.config_file, self.config),
                 (self.app_data_file, self.app_data),
@@ -987,7 +990,18 @@ class Application:
                 tmp_path = f"{path}.tmp"
                 with open(tmp_path, "w", encoding="utf-8") as yaml_file:
                     _yaml.dump(data, yaml_file)
-                os.replace(tmp_path, path)
+                    yaml_file.flush()
+                    os.fsync(yaml_file.fileno())
+                try:
+                    os.replace(tmp_path, path)
+                except OSError:
+                    with open(tmp_path, encoding="utf-8") as tmp_f:
+                        content = tmp_f.read()
+                    with open(path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                        f.flush()
+                        os.fsync(f.fileno())
+                    os.remove(tmp_path)
 
     def set_language(self, language: Language):
         """Set Language"""

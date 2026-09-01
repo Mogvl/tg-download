@@ -71,3 +71,18 @@ class AppTestCase(unittest.TestCase):
         app.update_config()
         mock_open.assert_called_with("data_test.yaml.tmp", "w", encoding="utf-8")
         mock_replace.assert_called_with("data_test.yaml.tmp", "data_test.yaml")
+
+    @mock.patch("os.remove")
+    @mock.patch("os.replace", side_effect=OSError(16, "Resource busy"))
+    @mock.patch("__main__.__builtins__.open", new_callable=mock.mock_open)
+    def test_update_config_bind_mount_fallback(self, mock_open, mock_replace, mock_rm):
+        """单文件 bind-mount 下 os.replace EBUSY：降级为覆盖写原文件"""
+        app = Application("", "")
+        app.config_file = "config_test.yaml"
+        app.app_data_file = "data_test.yaml"
+        app.config["chat"] = [{"chat_id": 123, "last_read_message_id": 0}]
+        app.update_config()  # 不应抛异常
+        # 降级路径：以写模式打开原文件（覆盖内容），并清理临时文件
+        calls = [c.args[0] for c in mock_open.call_args_list]
+        assert "config_test.yaml" in calls and "data_test.yaml" in calls
+        assert mock_rm.called
