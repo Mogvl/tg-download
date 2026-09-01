@@ -59,10 +59,13 @@ language: ZH               # 界面语言：EN / ZH / RU / UA
 max_download_task: 5
 
 # 单文件并行分块下载连接数（默认 1 = 关闭，走 pyrogram 默认顺序下载）
-# 开启后大文件(>=20MB)用多条连接并发拉取不同分块，可显著提升单文件速度；
-# 内置卡死看门狗与超时保护，失败自动回退顺序下载。
-# 建议在默认配置稳定运行后，再显式设为 3~6 尝试开启
-concurrent_chunks_per_file: 1
+# 会话池化复用（tdl 模式：连接进程级持有，不再每文件重建——避免触发限流）；
+# 大文件(>=20MB)按大小自适应 1~3 条连接并发拉取，卡死 30s 自动回退顺序下载
+# concurrent_chunks_per_file: 3
+
+# 下载流量走 Telegram 官方数据导出通道（takeout，服务端限速宽松，tdl 同款）
+# 仅对上面的并行路径生效；默认关闭
+# download_use_takeout: true
 
 # 启动容器后是否自动开始下载；false=需在 Web 界面手动点「开始下载」
 auto_download: false

@@ -1385,6 +1385,124 @@ async def _create_download_session(
     return session
 
 
+# 会话池大小：按 DC 池化复用（tdl 模式），跨文件共享、进程级持有
+_SESSION_POOL_SIZE = 8
+# takeout 会话闲置 7 天过期，6 天主动重建
+_TAKEOUT_REFRESH_SECONDS = 6 * 86400
+
+
+def _best_chunk_count(file_size: int, max_chunks: int) -> int:
+    """按文件大小自适应连接数（tdl BestThreads 模式）：小文件少开连接"""
+    for threshold, threads in (
+        (5 * 1024 * 1024, 1),
+        (20 * 1024 * 1024, 2),
+        (50 * 1024 * 1024, 3),
+    ):
+        if file_size < threshold:
+            return min(threads, max_chunks)
+    return max_chunks
+
+
+class _MediaSessionPool:
+    """按 DC 池化的媒体下载会话：一次性建好、全进程复用。
+
+    参照 tdl 的 dcpool 模式——连接是进程级长期资产，跨文件共享，
+    避免每文件反复新建/销毁会话（高频密钥协商会触发 Telegram 滥用限流）。
+    首个会话借用 pyrogram 自带的主媒体会话；其余由本池创建并终身持有。
+    """
+
+    def __init__(self, client: pyrogram.Client, size: int = _SESSION_POOL_SIZE):
+        self._client = client
+        self._size = size
+        self._free_q: dict = {}    # dc_id -> Queue（空闲会话）
+        self._count: dict = {}     # dc_id -> 本池已创建会话数（不含借用）
+        self._lock = asyncio.Lock()
+        self._takeout_id = None
+        self._takeout_created = 0.0
+
+    async def acquire(self, dc_id: int, timeout: float = 60):
+        """取一条空闲会话，返回 (session, owned)；池空则等待释放。"""
+        q = self._free_q.setdefault(dc_id, asyncio.Queue())
+        try:
+            return q.get_nowait(), False
+        except asyncio.QueueEmpty:
+            pass
+        async with self._lock:
+            if self._count.get(dc_id, 0) < self._size:
+                # 池未满：新建（首个复用 pyrogram 主媒体会话）
+                if self._count.get(dc_id, 0) == 0:
+                    session = await asyncio.wait_for(
+                        get_session(self._client, dc_id), timeout=30
+                    )
+                    self._count[dc_id] = 1
+                    return session, False
+                session = await asyncio.wait_for(
+                    _create_download_session(self._client, dc_id), timeout=60
+                )
+                self._count[dc_id] = self._count.get(dc_id, 0) + 1
+                return session, True
+        # 池已满：等待其他文件归还
+        session = await asyncio.wait_for(q.get(), timeout=timeout)
+        return session, False
+
+    def release(self, dc_id: int, session):
+        """归还会话（不销毁，供后续文件复用）"""
+        self._free_q.setdefault(dc_id, asyncio.Queue()).put_nowait(session)
+
+    def discard(self, dc_id: int, session):
+        """异常会话移出池：自建会话停止并允许重建；借用会话不归还即弃用"""
+        if session in list(self._free_q.get(dc_id, [])._queue):
+            return  # 已在空闲队列中的异常会话：移出
+        try:
+            self._free_q.get(dc_id, asyncio.Queue())._queue.remove(session)
+        except (ValueError, KeyError):
+            pass
+        count = self._count.get(dc_id, 0)
+        if count > 1:
+            # 仅自建会话可销毁重建（count 含借用的主会话占 1 位）
+            self._count[dc_id] = count - 1
+            async def _stop():
+                try:
+                    await session.stop()
+                except Exception:
+                    pass
+            asyncio.ensure_future(_stop())
+
+    async def get_takeout_id(self):
+        """获取 takeout 会话 ID（官方数据导出通道，限速宽松），过期重建"""
+        if (
+            self._takeout_id is None
+            or time.time() - self._takeout_created > _TAKEOUT_REFRESH_SECONDS
+        ):
+            existing = getattr(self._client, "takeout_id", None)
+            if existing:
+                self._takeout_id = existing
+            else:
+                r = await self._client.invoke(
+                    pyrogram.raw.functions.account.InitTakeoutSession(
+                        files=True,
+                        message_users=True,
+                        message_chats=True,
+                        message_megagroups=True,
+                        message_channels=True,
+                    )
+                )
+                self._takeout_id = r.id
+            self._takeout_created = time.time()
+        return self._takeout_id
+
+
+_media_pool: Optional[_MediaSessionPool] = None
+
+
+def _get_media_pool(client: pyrogram.Client) -> _MediaSessionPool:
+    """进程级会话池单例（应用只有一个下载用客户端）"""
+    global _media_pool
+    if _media_pool is None:
+        _media_pool = _MediaSessionPool(client, _SESSION_POOL_SIZE)
+    return _media_pool
+
+
 async def parallel_download_media(
     client: pyrogram.Client,
     message: pyrogram.types.Message,
@@ -1393,22 +1511,28 @@ async def parallel_download_media(
     chunk_concurrency: int,
     progress: Callable = None,
     progress_args: tuple = (),
+    use_takeout: bool = False,
 ) -> Optional[str]:
-    """并行分块下载单个大文件。
+    """并行分块下载单个大文件（tdl 模式：会话池复用 + takeout + 自适应）。
+
+    与旧实现的本质区别：会话从池中取用、跨文件复用、进程级持有——
+    不再每文件新建/销毁会话（高频密钥协商会触发 Telegram 滥用限流）。
 
     Parameters
     ----------
     file_size: 远端文件大小（<=0 或过小时调用方不应走此路径）
     file_name: 目标路径（语义与 client.download_media 的 file_name 一致：
                先写 "<file_name>.temp"，完成后改名并返回 file_name）
-    chunk_concurrency: 单文件并行会话数
+    chunk_concurrency: 单文件并行会话数上限（实际按文件大小自适应下调）
+    use_takeout: 用 Telegram 官方数据导出通道（takeout）承载下载流量
 
     Returns
     -------
     成功返回 file_name；任何失败返回 None（调用方回退顺序下载）。
     """
-    # 会话 0 复用主媒体会话，其余新建
-    sessions: list = []
+    pool = _get_media_pool(client)
+    held: list = []        # (dc_id, session, owned)——本文件借用的会话
+    discarded: set = set() # 已因异常丢弃、不再归还的会话
     abort = asyncio.Event()
     done_bytes = 0
     fd = None
@@ -1426,8 +1550,12 @@ async def parallel_download_media(
             return None
 
         dc_id = file_id.dc_id
+        # 自适应连接数（tdl BestThreads）：小文件少开连接
+        chunk_concurrency = _best_chunk_count(
+            file_size, max(1, chunk_concurrency)
+        )
         total_chunks = -(-file_size // _DOWNLOAD_CHUNK_SIZE)  # ceil
-        chunk_concurrency = max(1, min(chunk_concurrency, total_chunks))
+        chunk_concurrency = min(chunk_concurrency, total_chunks)
 
         async def _progress(done_bytes: int):
             if progress is None:
@@ -1440,28 +1568,35 @@ async def parallel_download_media(
             else:
                 await client.loop.run_in_executor(client.executor, func)
 
+        takeout_id = None
+        if use_takeout:
+            try:
+                takeout_id = await pool.get_takeout_id()
+            except Exception as te:
+                logger.warning(f"takeout session init failed, download without: {te}")
+
+        # 从池中取会话：池忙则少取几条（甚至 1 条也能跑，自然降级）
+        sessions = []   # (session, owned)
+        for _ in range(chunk_concurrency):
+            try:
+                session, owned = await pool.acquire(dc_id, timeout=60)
+                sessions.append((session, owned))
+                held.append((dc_id, session, owned))
+            except TimeoutError:
+                break
+
+        if not sessions:
+            return None
+
         os.makedirs(os.path.dirname(temp_path), exist_ok=True)
         fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
         os.ftruncate(fd, file_size)
 
-        # 会话建立限时：Auth 握手/授权导入挂起时不拖死整个下载
-        sessions.append(
-            await asyncio.wait_for(get_session(client, dc_id), timeout=30)
-        )
-        while len(sessions) < chunk_concurrency:
-            sessions.append(
-                await asyncio.wait_for(
-                    _create_download_session(client, dc_id), timeout=30
-                )
-            )
-
         next_chunk = {"i": 0}
         lock = asyncio.Lock()
-        # 卡死看门狗：超过 _PARALLEL_STALL_SECONDS 没有任何分块完成
-        # （连接挂起/网络黑洞）即放弃并行、回退顺序下载
         last_progress = {"t": time.time()}
 
-        async def worker(session: Session):
+        async def worker(session: Session, owned: bool):
             nonlocal done_bytes
             while not abort.is_set():
                 async with lock:
@@ -1471,16 +1606,24 @@ async def parallel_download_media(
                     return
                 offset = idx * _DOWNLOAD_CHUNK_SIZE
                 try:
-                    r = await session.invoke(
-                        pyrogram.raw.functions.upload.GetFile(
-                            location=location,
-                            offset=offset,
-                            limit=_DOWNLOAD_CHUNK_SIZE,
-                        ),
-                        sleep_threshold=10,
+                    query = pyrogram.raw.functions.upload.GetFile(
+                        location=location,
+                        offset=offset,
+                        limit=_DOWNLOAD_CHUNK_SIZE,
                     )
-                except Exception:
-                    # 该会话失败即放弃整体并行（回退顺序下载），不逐块重试
+                    if takeout_id:
+                        # 走官方数据导出通道（服务端限速宽松）
+                        query = pyrogram.raw.functions.InvokeWithTakeout(
+                            takeout_id=takeout_id, query=query
+                        )
+                    r = await session.invoke(query, sleep_threshold=10)
+                except Exception as e:
+                    # 会话异常：标记丢弃（自建会话停止、槽位允许重建），
+                    # 并放弃本文件的并行尝试（回退顺序下载）
+                    logger.warning(f"parallel chunk error ({e.__class__.__name__}: {e}), fallback")
+                    if owned:
+                        discarded.add(session)
+                        pool.discard(dc_id, session)
                     abort.set()
                     return
                 if not isinstance(r, pyrogram.raw.types.upload.File):
@@ -1504,7 +1647,9 @@ async def parallel_download_media(
                     return
                 await asyncio.sleep(5)
 
-        worker_tasks = [asyncio.create_task(worker(s)) for s in sessions]
+        worker_tasks = [
+            asyncio.create_task(worker(s, owned)) for s, owned in sessions
+        ]
         watchdog_task = asyncio.create_task(watchdog())
         completed = False
         try:
@@ -1531,13 +1676,13 @@ async def parallel_download_media(
             ):
                 completed = True
         finally:
-            # 通知所有协程收尾，并立即取消挂起的 worker（卡在 invoke 上的
-            # 会话不再等待，这就是"卡死→及时回退"的关键）
+            # 收尾：abort 通知 → 宽限 10s 让在途分块自然落盘 → 才取消
+            # 卡死的 worker（会话本身留在池中自愈复用，不再销毁）
             abort.set()
             watchdog_task.cancel()
-            for t in worker_tasks:
-                if not t.done():
-                    t.cancel()
+            done, pending = await asyncio.wait(worker_tasks, timeout=10)
+            for t in pending:
+                t.cancel()
             await asyncio.gather(*worker_tasks, return_exceptions=True)
 
         if not completed:
@@ -1548,7 +1693,7 @@ async def parallel_download_media(
         os.replace(temp_path, os.path.abspath(file_name))
         logger.info(
             f"parallel download {file_name} done: {file_size} bytes "
-            f"with {chunk_concurrency} connections"
+            f"with {len(sessions)} connections"
         )
         return file_name
     except Exception as e:
@@ -1566,12 +1711,15 @@ async def parallel_download_media(
                 os.remove(temp_path)
             except OSError:
                 pass
-        # 只清理本函数新建的会话（sessions[0] 是主媒体会话缓存，保留）
-        for session in sessions[1:]:
-            try:
-                await session.stop()
-            except Exception:
-                pass
+        # 会话归还池中复用（不销毁）；异常丢弃的除外
+        for dc_id, session, owned in held:
+            if session in discarded:
+                continue
+            if owned and abort.is_set() and not completed:
+                # 未成功完成的文件：自建会话可能状态不佳，丢弃待重建
+                pool.discard(dc_id, session)
+                continue
+            pool.release(dc_id, session)
 
 
 async def fetch_message(client: pyrogram.Client, message: pyrogram.types.Message):

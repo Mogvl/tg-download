@@ -401,6 +401,9 @@ class Application:
         # 内置卡死看门狗与超时，任何异常自动回退顺序下载。
         # 默认关闭，确认网络环境下稳定后再在 config.yaml 中显式开启
         self.concurrent_chunks_per_file: int = 1
+        # 下载流量走 Telegram 官方数据导出通道（takeout，服务端限速宽松）；
+        # 仅并行路径生效，默认关闭
+        self.download_use_takeout: bool = False
         self.web_host: str = "0.0.0.0"
         self.web_port: int = 5000
         self.max_download_task: int = 5
@@ -519,6 +522,10 @@ class Application:
 
         self.concurrent_chunks_per_file = _config.get(
             "concurrent_chunks_per_file", self.concurrent_chunks_per_file
+        )
+
+        self.download_use_takeout = bool(
+            _config.get("download_use_takeout", self.download_use_takeout)
         )
 
         language = _config.get("language", "EN")

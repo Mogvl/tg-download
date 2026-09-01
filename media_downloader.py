@@ -498,6 +498,7 @@ async def download_media(
                         node,
                         client,
                     ),
+                    use_takeout=app.download_use_takeout,
                 )
 
             temp_download_path = parallel_path or await client.download_media(
