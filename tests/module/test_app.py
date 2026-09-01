@@ -64,6 +64,7 @@ class AppTestCase(unittest.TestCase):
     @mock.patch("__main__.__builtins__.open", new_callable=mock.mock_open)
     def test_update_config(self, mock_open, mock_replace):
         """停机保存走原子写入：先写 .tmp 再 os.replace 替换正式文件"""
+        mock_open.return_value.fileno.return_value = 1
         app = Application("", "")
         app.config_file = "config_test.yaml"
         app.app_data_file = "data_test.yaml"
@@ -77,6 +78,7 @@ class AppTestCase(unittest.TestCase):
     @mock.patch("__main__.__builtins__.open", new_callable=mock.mock_open)
     def test_update_config_bind_mount_fallback(self, mock_open, mock_replace, mock_rm):
         """单文件 bind-mount 下 os.replace EBUSY：降级为覆盖写原文件"""
+        mock_open.return_value.fileno.return_value = 1
         app = Application("", "")
         app.config_file = "config_test.yaml"
         app.app_data_file = "data_test.yaml"
