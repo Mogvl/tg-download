@@ -165,8 +165,16 @@ def record_upload_time(chat_id, message_id, ts=None):
         logger.error(f"记录转发时间失败: {e}")
 
 
-def get_history(page=1, per_page=30, search="", media_type="All", sort_by="download_timestamp", sort_desc=True):
-    """查询下载历史（带搜索/筛选/排序/分页）"""
+def get_history(
+    page=1,
+    per_page=30,
+    search="",
+    media_type="All",
+    sort_by="download_timestamp",
+    sort_desc=True,
+    status="All",
+):
+    """查询下载历史（带搜索/筛选/排序/分页/状态过滤）"""
     if not _db_ok:
         return [], 0
     valid_sort = {
@@ -184,6 +192,10 @@ def get_history(page=1, per_page=30, search="", media_type="All", sort_by="downl
     if search:
         where.append("(file_name LIKE ? OR chat_id LIKE ?)")
         params += [f"%{search}%", f"%{search}%"]
+    if status and status != "All":
+        # COALESCE 与展示逻辑一致：旧记录 NULL 状态按成功处理
+        where.append("COALESCE(status, 'success') = ?")
+        params.append(status)
     if media_type and media_type != "All":
         where.append("media_type = ?")
         params.append(media_type)

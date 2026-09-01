@@ -375,7 +375,13 @@
     </div>
     <div class="hs">
       <input id="h-q" placeholder="搜索文件名或频道…" onkeydown="if(event.key==='Enter')hLoad()">
-      <select id="h-type" onchange="hLoad()" style="height:38px;padding:0 10px;border:1px solid var(--hairline);border-radius:10px;background:rgba(255,255,255,.55);font-size:12.5px;color:var(--ink);outline:none;">
+      <select id="h-status" onchange="hLoad()" style="height:38px;padding:0 10px;border:1px solid var(--hairline);border-radius:10px;background:rgba(255,255,255,.55);font-size:12.5px;color:var(--ink);outline:none;width:110px;flex:0 0 auto;">
+        <option value="All">全部状态</option>
+        <option value="success">成功</option>
+        <option value="failed">失败</option>
+        <option value="skip">跳过</option>
+      </select>
+      <select id="h-type" onchange="hLoad()" style="height:38px;padding:0 10px;border:1px solid var(--hairline);border-radius:10px;background:rgba(255,255,255,.55);font-size:12.5px;color:var(--ink);outline:none;width:110px;flex:0 0 auto;">
         <option value="All">全部类型</option>
         <option value="photo">照片</option>
         <option value="video">视频</option>
@@ -811,9 +817,10 @@ function logModeToggle(){
 function hLoad(){
   var q=encodeURIComponent(document.getElementById('h-q').value||'');
   var t=document.getElementById('h-type').value;
+  var st=document.getElementById('h-status').value;
   var pps=parseInt(document.getElementById('h-pps').value)||20;
   var x=new XMLHttpRequest();
-  x.open('GET','get_history?page='+_hPg+'&per_page='+pps+'&search='+q+'&media_type='+t,true);
+  x.open('GET','get_history?page='+_hPg+'&per_page='+pps+'&search='+q+'&media_type='+t+'&status='+st,true);
   x.onreadystatechange=function(){
     if(x.readyState!==4)return;
     if(x.status!==200){toast('历史加载失败');return;}

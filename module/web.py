@@ -602,11 +602,13 @@ def web_get_history():
     media_type = request.args.get("media_type", "All")
     sort_by = request.args.get("sort_by", "download_timestamp")
     sort_desc = request.args.get("sort_desc", "true") == "true"
+    status = request.args.get("status", "All")
 
     import utils.db as db_mod
     records, total = db_mod.get_history(
         page=page, per_page=per_page, search=search,
         media_type=media_type, sort_by=sort_by, sort_desc=sort_desc,
+        status=status,
     )
     # 历史累计总数（全量，不受搜索/筛选影响），供历史页「已完成」统计展示
     total_all = db_mod.get_total_count()
