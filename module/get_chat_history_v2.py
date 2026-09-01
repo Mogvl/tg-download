@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import AsyncGenerator, Optional, Union
 
 import pyrogram
+from loguru import logger
 
 # pylint: disable = W0611
 from pyrogram import raw, types, utils
@@ -64,6 +65,7 @@ async def get_chat_history_v2(
     limit = min(100, total)
 
     prev_offset_id = None
+    page_no = 0
     while True:
         messages = await get_chunk_v2(
             client=self,
@@ -81,17 +83,27 @@ async def get_chat_history_v2(
             return
 
         offset_id = messages[-1].id + (1 if reverse else 0)
-        # offset 每页累加（实测可行版本）：add_offset=-offset-limit 与
-        # offset_id 推进配合完成 reverse 分页
-        if reverse:
-            offset += len(messages)
+        # offset 保持调用方初值恒定，仅推进 offset_id 分页。
+        # reverse 的窗口语义：id ≥ offset_id 的范围里从 offset 处取 limit 条，
+        # offset_id(左界) 与 add_offset(-offset-limit 的右移量) 若同时推进
+        # 会双重跳页——恒定 offset 下每页恰好衔接上一页（已实测验证覆盖）。
+        # 空隙说明：频道消息 id 有空洞（非媒体/删除消息），本页末 id 加一
+        # 后下一页自动从空洞后继续，无需 offset 参与
 
         # reverse 模式推进保护：offset_id 必须严格前移，否则说明该页与
-        # 上一页重叠（服务端对负窗口边界的处理差异），继续会无限循环
-        # 重复拉取同一批消息；正常前移不受影响
+        # 上一页重叠（服务端边界行为差异），继续会无限重复拉取
         if reverse and prev_offset_id is not None and offset_id <= prev_offset_id:
+            logger.warning(
+                f"chat {chat_id}: page not advancing "
+                f"(offset_id {offset_id} <= {prev_offset_id}), stop pagination"
+            )
             return
         prev_offset_id = offset_id
+        page_no += 1
+        logger.debug(
+            f"chat {chat_id}: page {page_no}: "
+            f"ids {messages[0].id}..{messages[-1].id} ({len(messages)} msgs)"
+        )
 
         for message in messages:
             yield message
