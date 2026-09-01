@@ -362,9 +362,13 @@ def get_download_list():
         for idx, value in list(messages.items()):
             total_size = value.get("total_size") or 0
             down_byte = value.get("down_byte") or 0
-            is_already_down = down_byte == total_size
+            is_already_down = total_size > 0 and down_byte >= total_size
 
             if already_down and not is_already_down:
+                continue
+            if not already_down and is_already_down:
+                # 实时视图只显示在途任务：已完成的不再挂在这里，
+                # 持久记录去「已完成」列表（读数据库）
                 continue
 
             progress = round(down_byte / total_size * 100, 1) if total_size else 0.0
