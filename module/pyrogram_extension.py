@@ -1291,6 +1291,8 @@ _DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 _PARALLEL_MIN_SIZE = 20 * 1024 * 1024
 # 卡死判定：这么久没有任何分块完成就放弃并行（连接挂起/网络黑洞）
 _PARALLEL_STALL_SECONDS = 30
+# 单个分块被 FloodWait 限流时的最大原地重试次数（每次按服务端要求等待）
+_FLOOD_WAIT_MAX_ATTEMPTS = 5
 
 
 def _build_file_location(file_id):
@@ -1606,17 +1608,35 @@ async def parallel_download_media(
                     return
                 offset = idx * _DOWNLOAD_CHUNK_SIZE
                 try:
-                    query = pyrogram.raw.functions.upload.GetFile(
-                        location=location,
-                        offset=offset,
-                        limit=_DOWNLOAD_CHUNK_SIZE,
-                    )
-                    if takeout_id:
-                        # 走官方数据导出通道（服务端限速宽松）
-                        query = pyrogram.raw.functions.InvokeWithTakeout(
-                            takeout_id=takeout_id, query=query
+                    # 非会员账号触发 FLOOD_PREMIUM_WAIT_X 时按服务端要求
+                    # 等待后原地重试同一分块（等待计入看门狗窗口；节流
+                    # 比放弃重下划算——重下浪费全部已传字节）
+                    for attempt in range(_FLOOD_WAIT_MAX_ATTEMPTS):
+                        query = pyrogram.raw.functions.upload.GetFile(
+                            location=location,
+                            offset=offset,
+                            limit=_DOWNLOAD_CHUNK_SIZE,
                         )
-                    r = await session.invoke(query, sleep_threshold=10)
+                        if takeout_id:
+                            # 走官方数据导出通道（服务端限速宽松）
+                            query = pyrogram.raw.functions.InvokeWithTakeout(
+                                takeout_id=takeout_id, query=query
+                            )
+                        try:
+                            r = await session.invoke(query, sleep_threshold=60)
+                            break
+                        except (pyrogram.errors.FloodWait, pyrogram.errors.FloodPremiumWait) as fw:
+                            wait_s = min(int(getattr(fw, "value", 15)), 60)
+                            logger.warning(
+                                f"parallel chunk throttled {wait_s}s "
+                                f"(offset {offset}), attempt {attempt + 1}"
+                            )
+                            last_progress["t"] = time.time()  # 等待不触发看门狗
+                            await asyncio.sleep(wait_s)
+                    else:
+                        # 重试次数用尽仍被限流：放弃本文件（回退顺序下载）
+                        abort.set()
+                        return
                 except Exception as e:
                     # 会话异常：标记丢弃（自建会话停止、槽位允许重建），
                     # 并放弃本文件的并行尝试（回退顺序下载）
